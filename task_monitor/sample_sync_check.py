@@ -73,7 +73,7 @@ class SampleSyncChecker:
         ]
         return sorted(fastq_files, key=lambda p: str(p))
 
-    def traverse_dirctory(self) -> FastqPairMap:
+    def traverse_directory(self) -> FastqPairMap:
         """查找并返回样本名与 (R1, R2) 路径映射。"""
         sample_reads: dict[str, dict[str, Path]] = {}
         conflict_samples: set[str] = set()
@@ -97,10 +97,6 @@ class SampleSyncChecker:
             if "1" in reads and "2" in reads:
                 pairs[sample] = (reads["1"], reads["2"])
         return pairs
-
-    # 兼容可能已有的拼写正确调用方式。
-    def traverse_directory(self) -> FastqPairMap:
-        return self.traverse_dirctory()
 
     @staticmethod
     def _calc_md5(file_path: Path) -> str:
@@ -198,7 +194,7 @@ class SampleSyncChecker:
         - `require_md5=True` 时只保留 md5 校验通过的样本
         - 过滤掉已存在于数据库的样本
         """
-        sample_pairs = self.traverse_dirctory()
+        sample_pairs = self.traverse_directory()
         existing_samples = self._fetch_existing_samples()
 
         pending: FastqPairMap = {}

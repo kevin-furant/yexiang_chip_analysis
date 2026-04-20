@@ -1,0 +1,12 @@
+{
+    "fa": "/work/share/ac8t81mwbn/pipline/pip_test/05.ji/00.ref/Gallus_gallus.bGalGal1.mat.broiler.GRCg7b.dna.toplevel.fa",
+    "cpu": 20,
+    "batch_name": "GZBY20260002-BC01-01",
+    "out_dir": "/work/share/ac8t81mwbn/pipline/pip_test/05.ji",
+    "snp_list": "/work/share/ac8t81mwbn/pipline/gCap/ji_11K-1/chip/sort_11k_10k.list",
+    "bed": "/work/share/ac8t81mwbn/pipline/gCap/ji_11K-1/chip/probeCov.predict.bed",
+    "pos_gt": "/work/share/ac8t81mwbn/pipline/gCap/ji_11K-1/chip/10k.pos.gt",
+    "map_file": "/work/share/ac8t81mwbn/project/gaoying/01.ji/GZBY20260002-BC01-01/mapfile",
+    "genome_length": 1053332251,
+    "fq_xj_dir": "/work/share/ac8t81mwbn/pipline/gCap/ji_11K-1/chip/xj_fq"
+}
