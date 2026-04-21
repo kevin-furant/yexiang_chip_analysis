@@ -37,6 +37,7 @@ class AnalysisPipePrinter():
         self.vcftools = os.getenv("VCFTOOLS")
         self.bgzip = os.getenv("BGZIP")
         self.python3 = os.getenv("PYTHON")
+        self.pythonlib = os.getenv("PYTHONLIB")
         self.script_path = os.getenv("SCRIPT_PATH")
         self.pos_gt = self.config["pos_gt"]
         self.bcftools = os.getenv("BCFTOOLS")
@@ -69,6 +70,7 @@ class AnalysisPipePrinter():
                     self.unmap_dir.mkdir(parents=True, exist_ok=True)
                 outf.write(
                     f"""
+                    export PYTHONPATH=$PYTHONPATH:{self.pythonlib}
                     {self.bwa} mem -t {self.cpu} -R '@RG\\tID:{sample_name}\\tPL:illumina\\tSM:{sample_name}' {self.ref_genome} {read1} {read2} | {self.samtools} sort -@ {self.cpu_half} -m 2G --output-fmt BAM -o {self.bam_dir}/{sample_name}.sorted.bam && {self.samtools} index -@ {self.cpu} {self.bam_dir}/{sample_name}.sorted.bam && {self.samtools} quickcheck {self.bam_dir}/{sample_name}.sorted.bam && {self.samtools} view -b -f 4 -@ {self.cpu} {self.bam_dir}/{sample_name}.sorted.bam > {self.unmap_dir}/{sample_name}.unmap.bam && {self.samtools} stat --coverage 1,100,1 -@ {self.cpu} {self.bam_dir}/{sample_name}.sorted.bam > {self.stat_dir}/{sample_name}.bwa.stat && {self.samtools} rmdup {self.bam_dir}/{sample_name}.sorted.bam {self.bam_dir}/{sample_name}.sorted.rmdup.bam && {self.samtools} index -@ {self.cpu} {self.bam_dir}/{sample_name}.sorted.rmdup.bam
                     {self.samtools} depth -b {self.snp_list} {self.bam_dir}/{sample_name}.sorted.rmdup.bam >  {self.bam_dir}/{sample_name}.snp.depth.xls
                     export JAVA_HOME={os.getenv("JAVA_HOME")};export PATH=$JAVA_HOME/bin:$PATH;export CLASSPATH=.:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar;{self.gatk} --java-options "-Xmx15G"  HaplotypeCaller -R {self.ref_genome} -ERC GVCF -I {self.bam_dir}/{sample_name}.sorted.rmdup.bam -O {self.bam_dir}/{sample_name}.g.vcf.gz -L {self.bed} --do-not-run-physical-phasing --tmp-dir {self.config["out_dir"]}/tmp
@@ -81,6 +83,11 @@ class AnalysisPipePrinter():
                     mkdir -p {self.bam_dir}/{sample_name}_buhuo_stat
                     {self.bamdst} -p {self.bed} -o {self.bam_dir}/{sample_name}_buhuo_stat  {self.bam_dir}/{sample_name}.sorted.rmdup.bam
                     {self.samtools} depth -b {self.snp_list} {self.bam_dir}/{sample_name}.sorted.rmdup.bam >  {self.bam_dir}/{sample_name}.snp.depth.xls
+                    if [ $? == 0 ];then
+                        {self.python3} -m task_monitor update --sample {sample_name} --status done
+                    else
+                        {self.python3} -m task_monitor update --sample {sample_name} --status fail
+                    fi
                     """
                 )
 

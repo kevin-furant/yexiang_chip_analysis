@@ -70,27 +70,16 @@ def _insert_new_samples(
 def _fetch_samples_by_status(
     db_file: Path,
     status: str,
-    scoped_samples: set[str] | None = None,
-) -> list[str]:
+    ) -> list[str]:
     conn = _connect(db_file)
     try:
-        if scoped_samples:
-            placeholders = ",".join("?" for _ in scoped_samples)
-            sql = f"""
-                SELECT sample
-                FROM task_status
-                WHERE bwa2gvcf = ? AND sample IN ({placeholders})
-                ORDER BY created_at ASC, sample ASC
-            """
-            rows = conn.execute(sql, (status, *sorted(scoped_samples))).fetchall()
-        else:
-            sql = """
-                SELECT sample
-                FROM task_status
-                WHERE bwa2gvcf = ?
-                ORDER BY created_at ASC, sample ASC
-            """
-            rows = conn.execute(sql, (status,)).fetchall()
+        sql = """
+            SELECT sample
+            FROM task_status
+            WHERE bwa2gvcf = ?
+            ORDER BY created_at ASC, sample ASC
+        """
+        rows = conn.execute(sql, (status,)).fetchall()
         return [r[0] for r in rows]
     finally:
         conn.close()
@@ -142,20 +131,6 @@ def _build_parser() -> argparse.ArgumentParser:
 
     return parser
 
-
-def _parse_samples(values: list[str]) -> list[str]:
-    samples: list[str] = []
-    seen: set[str] = set()
-    for value in values:
-        for item in value.split(","):
-            sample = item.strip()
-            if not sample or sample in seen:
-                continue
-            seen.add(sample)
-            samples.append(sample)
-    return samples
-
-
 def _load_mapfile_pairs(map_file: Path) -> dict[str, tuple[str, str]]:
     if not map_file.exists():
         raise FileNotFoundError(f"mapfile 不存在: {map_file}")
@@ -175,48 +150,55 @@ def _load_mapfile_pairs(map_file: Path) -> dict[str, tuple[str, str]]:
     return pairs
 
 
-def _count_status(db_file: Path, status: str, scoped_samples: set[str]) -> int:
+def _count_status(db_file: Path, status: str) -> int:
     conn = _connect(db_file)
     try:
-        if not scoped_samples:
-            return 0
-        placeholders = ",".join("?" for _ in scoped_samples)
-        sql = f"""
+        sql = """
             SELECT COUNT(*)
             FROM task_status
-            WHERE bwa2gvcf = ? AND sample IN ({placeholders})
+            WHERE bwa2gvcf = ?
         """
-        row = conn.execute(sql, (status, *sorted(scoped_samples))).fetchone()
+        row = conn.execute(sql, (status,)).fetchone()
         return int(row[0] if row else 0)
     finally:
         conn.close()
 
 
-def _run_submit(script_file: Path, submit_cmd: str, cwd: Path) -> subprocess.Popen[str]:
-    cmd_text = submit_cmd.format(script=str(script_file)) if "{script}" in submit_cmd else f"{submit_cmd} {script_file}"
-    cmd = shlex.split(cmd_text)
-    return subprocess.Popen(cmd, cwd=cwd)
-
+def _run_submit(script_file: Path, cwd: Path) -> subprocess.Popen[str]:
+    cmd_text = f"nohup bash {shlex.quote(str(script_file))} >/dev/null 2>&1 &"
+    return subprocess.Popen(cmd_text, cwd=cwd, shell=True, text=True)
 
 # def _chunks(items: list[str], size: int) -> list[list[str]]:
 #     if size <= 0:
 #         return [items]
 #     return [items[i : i + size] for i in range(0, len(items), size)]
 
-
-def _write_work_shell(work_shell: Path, batch_shell: Path, report_shell: Path) -> None:
-    work_shell.write_text(
-        "\n".join(
-            [
-                "#!/usr/bin/env bash",
-                "set -euo pipefail",
-                f"bash {shlex.quote(str(batch_shell))}",
-                f"bash {shlex.quote(str(report_shell))}",
-                "",
-            ]
-        ),
-        encoding="utf-8",
+def _write_work_shell(
+    work_shell: Path,
+    shell: Path,
+    lines: int,
+    mem: str,
+    cpu: int,
+    comment: bool = False,
+    append: bool = True,
+) -> None:
+    """
+    向 work.sh 写入单条 slurm_Duty 投递命令。
+    shell 仅支持单个脚本文件，便于按脚本设置不同资源。
+    """
+    cmd = (
+        "/usr/bin/perl /work/share/ac8t81mwbn/pipline/gatk/bin/slurm_Duty.pl "
+        f"--interval 30 --maxjob 10 --convert no --lines {lines} "
+        f"--partition wzhcnormal --reslurm --mem {mem} --cpu {cpu} {shell}"
     )
+    if comment:
+        cmd = f"#{cmd}"
+
+    existed = work_shell.exists()
+    with work_shell.open("a" if append else "w", encoding="utf-8") as fh:
+        if append and existed and work_shell.stat().st_size > 0:
+            fh.write("\n")
+        fh.write(f"{cmd}\n")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -240,15 +222,7 @@ def main(argv: list[str] | None = None) -> int:
     init_step_tracker_db(project_path)
     config_data = json.loads(config_file.read_text(encoding="utf-8"))
     map_pairs = _load_mapfile_pairs(Path(config_data["map_file"]))
-
-    active_samples_map = SampleSyncChecker(db_file=db_file, data_dir=config_data["fq_xj_dir"]).collect_pending_samples()
-    active_samples = list(active_samples_map.keys())
-    sample_scope = set(active_samples)
-    sample_info = {sample: [map_pairs[sample][0], map_pairs[sample][1]] for sample in active_samples}
-    inserted = _insert_new_samples(db_file, active_samples)
-    print(f"[OK] 已载入样本 {len(active_samples)} 个，新增入库 {inserted} 个。")
-
-    printer = AnalysisPipePrinter(sample_list=sample_scope, config_file=config_file)
+    total_samples_count = len(map_pairs)
     out_dir = Path(config_data["out_dir"]) / config_data["batch_name"] / "00.bin"
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -256,40 +230,92 @@ def main(argv: list[str] | None = None) -> int:
     final_stage_submitted = False
     round_index = 0
 
+    if args.command == "update":
+        sample = args.sample
+        status = args.status
+        if status not in StatusUpdater.VALID_STATUS:
+            print(f"[ERROR] 无效的状态: {status}")
+            return 1
+        status_updater = StatusUpdater(db_file=db_file, status_tag=status)
+        updated_count = status_updater.update_sample_status(sample)
+        if updated_count == 1:
+            print(f"[OK] 更新了样本 {sample} 的状态为 {status}")
+            return 0
+        else:
+            print(f"[ERROR] 更新了样本 {sample} 的状态为 {status} 失败，请检查样本名是否正确")
+            return 1
+
+
     while True:
+        active_samples_map = SampleSyncChecker(db_file=db_file, data_dir=config_data["fq_xj_dir"]).collect_pending_samples()
+        active_samples = list(active_samples_map.keys())
+        sample_scope = set(active_samples)
+        if not active_samples:
+            sleep(max(args.interval, 1) * 60)
+            continue
+        sample_info = {sample: [map_pairs[sample][0], map_pairs[sample][1]] for sample in active_samples}
+        inserted = _insert_new_samples(db_file, active_samples)
+        print(f"[OK] 已载入样本 {len(active_samples)} 个，新增入库 {inserted} 个。")
         to_submit = sample_scope
-        total_count = len(to_submit)
+        batch_sample_count = len(to_submit)
         if to_submit:
             single_script = out_dir / f"single_step_{round_index}.sh"
+            single_step_run_shell = out_dir / "single_step_run.sh"
             AnalysisPipePrinter(sample_list=to_submit, config_file=config_file).print_single_step(single_script)
-            proc = _run_submit(single_script, args.submit_cmd, cwd=project_path)
+            _write_work_shell(single_step_run_shell, single_script, 18, "82G", 20)
+            proc = _run_submit(single_step_run_shell, cwd=project_path / "00.bin")
             print(
                 f"[OK] 已投递 single_step 批次{round_index}: {len(to_submit)} 样本, "
                 f"pid={proc.pid}, script={single_script}"
             )
             submitted_samples.update(to_submit)
-        running_samples = _fetch_samples_by_status(db_file, "running", sample_scope) or submitted_samples
-        done_count = _count_status(db_file, "done", sample_scope) or 0
-        fail_count = _count_status(db_file, "fail", sample_scope) or 0
+            print(
+                f"[INFO] 轮次{round_index}: total={batch_sample_count}"
+            )
+            round_index += 1
+            to_submit = set()
+        running_samples = _fetch_samples_by_status(db_file, "running")
+        done_count = _count_status(db_file, "done")
+        fail_count = _count_status(db_file, "fail")
+        if done_count == total_samples_count:
+            print(f"[OK] 所有样本已处理完成, 将进行合并步骤及报告生成！")
+        if done_count + fail_count == total_samples_count and fail_count > 0:
+            print(f"[Fail] 所有样本已处理完成，但是有样本任务失败，退出任务")
+            return 1
         print(
-            f"[INFO] 轮次{round_index}: total={total_count}, "
             f"running={len(running_samples)}, done={done_count}, fail={fail_count}"
         )
-        round_index += 1
-        to_submit = set()
-        
-        if not final_stage_submitted and done_count >= total_count:
+
+        if not final_stage_submitted and done_count == total_samples_count:
+            printer = AnalysisPipePrinter(sample_list=set(sample_info.keys()), config_file=config_file)
             vcf_list = [
                 str(printer.bam_dir / f"{sample}.fill.vcf.gz")
-                for sample in active_samples
+                for sample in sample_info.keys()
             ]
             batch_script = out_dir / "batch_step.sh"
             report_script = out_dir / "report_step.sh"
             work_script = out_dir / "work.sh"
             printer.print_batch_step(batch_script, vcf_list=vcf_list)
             printer.print_report_step(report_script)
-            _write_work_shell(work_script, batch_script, report_script)
-            proc = _run_submit(work_script, args.submit_cmd, cwd=project_path)
+            _write_work_shell(
+                work_shell=work_script,
+                shell=batch_script,
+                lines=9,
+                mem="30G",
+                cpu=4,
+                comment=False,
+                append=False,
+            )
+            _write_work_shell(
+                work_shell=work_script,
+                shell=report_script,
+                lines=40,
+                mem="82G",
+                cpu=20,
+                comment=True,
+                append=True,
+            )
+            proc = _run_submit(work_script, cwd=project_path / "00.bin")
             final_stage_submitted = True
             print(f"[OK] 已投递汇总流程: pid={proc.pid}, script={work_script}")
             print("[OK] 全部样本已完成 single_step，值守进程退出。")
