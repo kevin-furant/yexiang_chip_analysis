@@ -16,6 +16,7 @@ class AnalysisPipePrinter():
         config_file: 配置文件路径
         sample_info: 样本信息，字典类型，key为样本名，value为r1, r2路径的列表
         """
+        self.config_file = config_file
         self.config = json.loads(config_file.read_text())
         self.sample_list = sample_list
         self.map_file = Path(self.config["map_file"])
@@ -83,9 +84,9 @@ mkdir -p {self.bam_dir}/{sample_name}_buhuo_stat
 {self.bamdst} -p {self.bed} -o {self.bam_dir}/{sample_name}_buhuo_stat  {self.bam_dir}/{sample_name}.sorted.rmdup.bam
 {self.samtools} depth -b {self.snp_list} {self.bam_dir}/{sample_name}.sorted.rmdup.bam >  {self.bam_dir}/{sample_name}.snp.depth.xls
 if [ $? == 0 ];then
-    {self.python3} -m task_monitor update --sample {sample_name} --status done
+    {self.python3} -m task_monitor --project_path {self.config["out_dir"]} --config-file {self.config_file} update --sample {sample_name} --status done
 else
-    {self.python3} -m task_monitor update --sample {sample_name} --status fail
+    {self.python3} -m task_monitor --project_path {self.config["out_dir"]} --config-file {self.config_file} update --sample {sample_name} --status fail
 fi
 """
                 )
