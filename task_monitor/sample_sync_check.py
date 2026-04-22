@@ -17,7 +17,7 @@ class SampleSyncChecker:
     3、与 step_tracker.db 中样本比较，过滤出待处理样本
     """
 
-    FASTQ_SUFFIXES = (".fastq.gz", ".fq.gz", ".fastq", ".fq")
+    FASTQ_SUFFIXES = (".clean.fq.gz", ".fastq.gz", ".fq.gz", ".fastq", ".fq")
     SAMPLE_READ_PATTERNS = (
         re.compile(r"^(?P<sample>.+)_R(?P<read>[12])(?:_\d+)?$"),
         re.compile(r"^(?P<sample>.+)_(?P<read>[12])$"),
