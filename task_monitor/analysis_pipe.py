@@ -87,7 +87,7 @@ if [ $? == 0 ];then
 else
     {self.python3} -m task_monitor update --sample {sample_name} --status fail
 fi
-                    """
+"""
                 )
 
     def print_batch_step(self, script_file: Path, vcf_list: list):
@@ -106,7 +106,7 @@ fi
 {self.bgzip} {self.result_dir}/final.chip.filtdp.vcf
 {self.bcftools} index {self.result_dir}/final.chip.filtdp.vcf.gz
 sample_count=$({self.bcftools} query -l {self.result_dir}/final.chip.filtdp.vcf.gz | wc -l) && {self.plink} --vcf {self.result_dir}/final.chip.filtdp.vcf.gz --make-bed --out "{self.result_dir}/{self.batch_name}-${{sample_count}}例样本检测结果" --allow-extra-chr --chr-set 80 --double-id && {self.plink} --vcf {self.result_dir}/final.chip.filtdp.vcf.gz --recode --out "{self.result_dir}/{self.batch_name}-${{sample_count}}例样本检测结果" --allow-extra-chr --chr-set 80 --double-id && cd {self.result_dir} && mkdir {self.batch_name}-${{sample_count}}例样本检测结果 && mv {self.batch_name}-${{sample_count}}例样本检测结果.ped {self.batch_name}-${{sample_count}}例样本检测结果 && mv {self.batch_name}-${{sample_count}}例样本检测结果.map {self.batch_name}-${{sample_count}}例样本检测结果 && zip -r {self.batch_name}-${{sample_count}}例样本检测结果.zip {self.batch_name}-${{sample_count}}例样本检测结果
-                """
+"""
             )
         self.sample_num = len(vcf_list)
 
@@ -140,5 +140,5 @@ cp {self.vcfstat_dir}/chip_snp_stat.xls  {self.report_dir}/SNP
 cp {self.vcfstat_dir}/chip_sample_stat.xls  {self.report_dir}/SNP
 {self.python3} {self.script_path}/genotype_boxplot.py --snp_stat {self.report_dir}/SNP/chip_snp_stat.xls --spl_stat {self.report_dir}/SNP/chip_sample_stat.xls --outpath {self.report_dir}/SNP
 required_files=("{self.report_dir}/stat/bwa_result.xls" "{self.report_dir}/stat/stat.xls" "{self.report_dir}/SNP/chip_snp_stat.xls" "{self.report_dir}/SNP/chip_sample_stat.xls" "{self.report_dir}/SNP/sample_boxplot.png" "{self.report_dir}/SNP/snp_boxplot.png"); all_files_exist=true; for file in "${{required_files[@]}}"; do if [ ! -f "$file" ]; then echo "错误: 必需文件不存在: $file"; all_files_exist=false; fi; done; if $all_files_exist; then echo "所有必需文件已就绪，开始生成报告..."; {self.python3} {self.script_path}/qiyereport/yexiang_genohtml.py -d {self.report_dir} -p 肉鸡10K育种芯片 -n AI驱动的育种检测体系及智能分析流程构建 -c GZBY20260002-BC01-01 -o {self.report_dir} --template {self.script_path}/qiyereport/template/full_report.html --src-dir {self.script_path}/qiyereport/src/ --copy-static -k AI驱动的育种检测体系及智能分析流程构建 -s {self.sample_num}; else echo "错误: 缺少必需文件，无法生成报告"; exit 1; fi
-                """
+"""
             )
