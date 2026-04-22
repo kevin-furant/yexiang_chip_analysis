@@ -225,6 +225,8 @@ def main(argv: list[str] | None = None) -> int:
     total_samples_count = len(map_pairs)
     out_dir = Path(config_data["out_dir"]) / config_data["batch_name"] / "00.bin"
     out_dir.mkdir(parents=True, exist_ok=True)
+    tmp_dir = Path(config_data["out_dir"]) / config_data["batch_name"] / "tmp"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
 
     submitted_samples: set[str] = set()
     final_stage_submitted = False
