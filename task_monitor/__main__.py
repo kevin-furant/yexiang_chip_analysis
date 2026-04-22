@@ -99,7 +99,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--config-file",
         type=Path,
-        required=True,
+        default=Path("config.json"),
         help="流程配置文件（JSON）",
     )
     parser.add_argument(
