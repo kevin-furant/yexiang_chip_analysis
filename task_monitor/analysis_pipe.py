@@ -83,11 +83,7 @@ export JAVA_HOME={os.getenv("JAVA_HOME")};export PATH=$JAVA_HOME/bin:$PATH;expor
 mkdir -p {self.bam_dir}/{sample_name}_buhuo_stat
 {self.bamdst} -p {self.bed} -o {self.bam_dir}/{sample_name}_buhuo_stat  {self.bam_dir}/{sample_name}.sorted.rmdup.bam
 {self.samtools} depth -b {self.snp_list} {self.bam_dir}/{sample_name}.sorted.rmdup.bam >  {self.bam_dir}/{sample_name}.snp.depth.xls
-if [ $? == 0 ];then
-    {self.python3} -m task_monitor --project_path {self.config["out_dir"]} --config-file {self.config_file} update --sample {sample_name} --status done
-else
-    {self.python3} -m task_monitor --project_path {self.config["out_dir"]} --config-file {self.config_file} update --sample {sample_name} --status fail
-fi
+{self.python3} -m task_monitor --project_path {self.config["out_dir"]} --config-file {self.config_file} update --sample {sample_name} --status $([ $? == 0 ] && echo done || echo fail)
 """
                 )
 
