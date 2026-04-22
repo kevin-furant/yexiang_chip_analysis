@@ -69,25 +69,24 @@ class AnalysisPipePrinter():
                 if not self.unmap_dir.exists():
                     self.unmap_dir.mkdir(parents=True, exist_ok=True)
                 outf.write(
-                    f"""
-                    export PYTHONPATH=$PYTHONPATH:{self.pythonlib}
-                    {self.bwa} mem -t {self.cpu} -R '@RG\\tID:{sample_name}\\tPL:illumina\\tSM:{sample_name}' {self.ref_genome} {read1} {read2} | {self.samtools} sort -@ {self.cpu_half} -m 2G --output-fmt BAM -o {self.bam_dir}/{sample_name}.sorted.bam && {self.samtools} index -@ {self.cpu} {self.bam_dir}/{sample_name}.sorted.bam && {self.samtools} quickcheck {self.bam_dir}/{sample_name}.sorted.bam && {self.samtools} view -b -f 4 -@ {self.cpu} {self.bam_dir}/{sample_name}.sorted.bam > {self.unmap_dir}/{sample_name}.unmap.bam && {self.samtools} stat --coverage 1,100,1 -@ {self.cpu} {self.bam_dir}/{sample_name}.sorted.bam > {self.stat_dir}/{sample_name}.bwa.stat && {self.samtools} rmdup {self.bam_dir}/{sample_name}.sorted.bam {self.bam_dir}/{sample_name}.sorted.rmdup.bam && {self.samtools} index -@ {self.cpu} {self.bam_dir}/{sample_name}.sorted.rmdup.bam
-                    {self.samtools} depth -b {self.snp_list} {self.bam_dir}/{sample_name}.sorted.rmdup.bam >  {self.bam_dir}/{sample_name}.snp.depth.xls
-                    export JAVA_HOME={os.getenv("JAVA_HOME")};export PATH=$JAVA_HOME/bin:$PATH;export CLASSPATH=.:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar;{self.gatk} --java-options "-Xmx15G"  HaplotypeCaller -R {self.ref_genome} -ERC GVCF -I {self.bam_dir}/{sample_name}.sorted.rmdup.bam -O {self.bam_dir}/{sample_name}.g.vcf.gz -L {self.bed} --do-not-run-physical-phasing --tmp-dir {self.config["out_dir"]}/tmp
-                    export JAVA_HOME={os.getenv("JAVA_HOME")};export PATH=$JAVA_HOME/bin:$PATH;export CLASSPATH=.:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar;{self.gatk} --java-options "-Xmx15G"  GenotypeGVCFs -R {self.ref_genome} -V {self.bam_dir}/{sample_name}.g.vcf.gz -O {self.bam_dir}/{sample_name}.vcf.gz
-                    {self.vcftools} --gzvcf {self.bam_dir}/{sample_name}.vcf.gz --positions {self.snp_list} --recode --stdout | {self.bgzip} -c > {self.bam_dir}/{sample_name}.chip.vcf.gz
-                    {self.python3} {self.script_path}/fill_missing_sites_from_allpos_Version6.py --allpos {self.pos_gt} --depth {self.bam_dir}/{sample_name}.snp.depth.xls --vcf {self.bam_dir}/{sample_name}.chip.vcf.gz --out {self.bam_dir}/{sample_name}.fill.vcf
-                    {self.bgzip} {self.bam_dir}/{sample_name}.fill.vcf
-                    {self.bcftools} index {self.bam_dir}/{sample_name}.fill.vcf.gz && rm {self.bam_dir}/{sample_name}.sorted.bam {self.bam_dir}/{sample_name}.sorted.bam.bai
-                    {self.pandepth} -i {self.bam_dir}/{sample_name}.sorted.rmdup.bam -b {self.bed} -o {self.bam_dir}/{sample_name}
-                    mkdir -p {self.bam_dir}/{sample_name}_buhuo_stat
-                    {self.bamdst} -p {self.bed} -o {self.bam_dir}/{sample_name}_buhuo_stat  {self.bam_dir}/{sample_name}.sorted.rmdup.bam
-                    {self.samtools} depth -b {self.snp_list} {self.bam_dir}/{sample_name}.sorted.rmdup.bam >  {self.bam_dir}/{sample_name}.snp.depth.xls
-                    if [ $? == 0 ];then
-                        {self.python3} -m task_monitor update --sample {sample_name} --status done
-                    else
-                        {self.python3} -m task_monitor update --sample {sample_name} --status fail
-                    fi
+                    f"""export PYTHONPATH=$PYTHONPATH:{self.pythonlib}
+{self.bwa} mem -t {self.cpu} -R '@RG\\tID:{sample_name}\\tPL:illumina\\tSM:{sample_name}' {self.ref_genome} {read1} {read2} | {self.samtools} sort -@ {self.cpu_half} -m 2G --output-fmt BAM -o {self.bam_dir}/{sample_name}.sorted.bam && {self.samtools} index -@ {self.cpu} {self.bam_dir}/{sample_name}.sorted.bam && {self.samtools} quickcheck {self.bam_dir}/{sample_name}.sorted.bam && {self.samtools} view -b -f 4 -@ {self.cpu} {self.bam_dir}/{sample_name}.sorted.bam > {self.unmap_dir}/{sample_name}.unmap.bam && {self.samtools} stat --coverage 1,100,1 -@ {self.cpu} {self.bam_dir}/{sample_name}.sorted.bam > {self.stat_dir}/{sample_name}.bwa.stat && {self.samtools} rmdup {self.bam_dir}/{sample_name}.sorted.bam {self.bam_dir}/{sample_name}.sorted.rmdup.bam && {self.samtools} index -@ {self.cpu} {self.bam_dir}/{sample_name}.sorted.rmdup.bam
+{self.samtools} depth -b {self.snp_list} {self.bam_dir}/{sample_name}.sorted.rmdup.bam >  {self.bam_dir}/{sample_name}.snp.depth.xls
+export JAVA_HOME={os.getenv("JAVA_HOME")};export PATH=$JAVA_HOME/bin:$PATH;export CLASSPATH=.:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar;{self.gatk} --java-options "-Xmx15G"  HaplotypeCaller -R {self.ref_genome} -ERC GVCF -I {self.bam_dir}/{sample_name}.sorted.rmdup.bam -O {self.bam_dir}/{sample_name}.g.vcf.gz -L {self.bed} --do-not-run-physical-phasing --tmp-dir {self.config["out_dir"]}/tmp
+export JAVA_HOME={os.getenv("JAVA_HOME")};export PATH=$JAVA_HOME/bin:$PATH;export CLASSPATH=.:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar;{self.gatk} --java-options "-Xmx15G"  GenotypeGVCFs -R {self.ref_genome} -V {self.bam_dir}/{sample_name}.g.vcf.gz -O {self.bam_dir}/{sample_name}.vcf.gz
+{self.vcftools} --gzvcf {self.bam_dir}/{sample_name}.vcf.gz --positions {self.snp_list} --recode --stdout | {self.bgzip} -c > {self.bam_dir}/{sample_name}.chip.vcf.gz
+{self.python3} {self.script_path}/fill_missing_sites_from_allpos_Version6.py --allpos {self.pos_gt} --depth {self.bam_dir}/{sample_name}.snp.depth.xls --vcf {self.bam_dir}/{sample_name}.chip.vcf.gz --out {self.bam_dir}/{sample_name}.fill.vcf
+{self.bgzip} {self.bam_dir}/{sample_name}.fill.vcf
+{self.bcftools} index {self.bam_dir}/{sample_name}.fill.vcf.gz && rm {self.bam_dir}/{sample_name}.sorted.bam {self.bam_dir}/{sample_name}.sorted.bam.bai
+{self.pandepth} -i {self.bam_dir}/{sample_name}.sorted.rmdup.bam -b {self.bed} -o {self.bam_dir}/{sample_name}
+mkdir -p {self.bam_dir}/{sample_name}_buhuo_stat
+{self.bamdst} -p {self.bed} -o {self.bam_dir}/{sample_name}_buhuo_stat  {self.bam_dir}/{sample_name}.sorted.rmdup.bam
+{self.samtools} depth -b {self.snp_list} {self.bam_dir}/{sample_name}.sorted.rmdup.bam >  {self.bam_dir}/{sample_name}.snp.depth.xls
+if [ $? == 0 ];then
+    {self.python3} -m task_monitor update --sample {sample_name} --status done
+else
+    {self.python3} -m task_monitor update --sample {sample_name} --status fail
+fi
                     """
                 )
 
@@ -98,16 +97,15 @@ class AnalysisPipePrinter():
 
         with open(script_file, 'w') as outf:
             outf.write(
-                f"""
-                ulimit -n 10000
-                {self.bcftools} merge -m all {" ".join(vcf_list)} -O z -o {self.result_dir}/final.chip.vcf.gz && {self.bcftools} index {self.result_dir}/final.chip.vcf.gz
-                {self.python3} {self.script_path}/fix.py {self.result_dir}/final.chip.vcf.gz {self.pos_gt} {self.result_dir}/final.chip.2M.vcf
-                {self.bgzip} {self.result_dir}/final.chip.2M.vcf
-                {self.bcftools} index {self.result_dir}/final.chip.2M.vcf.gz
-                {self.bcftools} +setGT {self.result_dir}/final.chip.2M.vcf.gz -o {self.result_dir}/final.chip.filtdp.vcf -- -t q -n . -i 'FMT/DP<4'
-                {self.bgzip} {self.result_dir}/final.chip.filtdp.vcf
-                {self.bcftools} index {self.result_dir}/final.chip.filtdp.vcf.gz
-                sample_count=$({self.bcftools} query -l {self.result_dir}/final.chip.filtdp.vcf.gz | wc -l) && {self.plink} --vcf {self.result_dir}/final.chip.filtdp.vcf.gz --make-bed --out "{self.result_dir}/{self.batch_name}-${{sample_count}}例样本检测结果" --allow-extra-chr --chr-set 80 --double-id && {self.plink} --vcf {self.result_dir}/final.chip.filtdp.vcf.gz --recode --out "{self.result_dir}/{self.batch_name}-${{sample_count}}例样本检测结果" --allow-extra-chr --chr-set 80 --double-id && cd {self.result_dir} && mkdir {self.batch_name}-${{sample_count}}例样本检测结果 && mv {self.batch_name}-${{sample_count}}例样本检测结果.ped {self.batch_name}-${{sample_count}}例样本检测结果 && mv {self.batch_name}-${{sample_count}}例样本检测结果.map {self.batch_name}-${{sample_count}}例样本检测结果 && zip -r {self.batch_name}-${{sample_count}}例样本检测结果.zip {self.batch_name}-${{sample_count}}例样本检测结果
+                f"""ulimit -n 10000
+{self.bcftools} merge -m all {" ".join(vcf_list)} -O z -o {self.result_dir}/final.chip.vcf.gz && {self.bcftools} index {self.result_dir}/final.chip.vcf.gz
+{self.python3} {self.script_path}/fix.py {self.result_dir}/final.chip.vcf.gz {self.pos_gt} {self.result_dir}/final.chip.2M.vcf
+{self.bgzip} {self.result_dir}/final.chip.2M.vcf
+{self.bcftools} index {self.result_dir}/final.chip.2M.vcf.gz
+{self.bcftools} +setGT {self.result_dir}/final.chip.2M.vcf.gz -o {self.result_dir}/final.chip.filtdp.vcf -- -t q -n . -i 'FMT/DP<4'
+{self.bgzip} {self.result_dir}/final.chip.filtdp.vcf
+{self.bcftools} index {self.result_dir}/final.chip.filtdp.vcf.gz
+sample_count=$({self.bcftools} query -l {self.result_dir}/final.chip.filtdp.vcf.gz | wc -l) && {self.plink} --vcf {self.result_dir}/final.chip.filtdp.vcf.gz --make-bed --out "{self.result_dir}/{self.batch_name}-${{sample_count}}例样本检测结果" --allow-extra-chr --chr-set 80 --double-id && {self.plink} --vcf {self.result_dir}/final.chip.filtdp.vcf.gz --recode --out "{self.result_dir}/{self.batch_name}-${{sample_count}}例样本检测结果" --allow-extra-chr --chr-set 80 --double-id && cd {self.result_dir} && mkdir {self.batch_name}-${{sample_count}}例样本检测结果 && mv {self.batch_name}-${{sample_count}}例样本检测结果.ped {self.batch_name}-${{sample_count}}例样本检测结果 && mv {self.batch_name}-${{sample_count}}例样本检测结果.map {self.batch_name}-${{sample_count}}例样本检测结果 && zip -r {self.batch_name}-${{sample_count}}例样本检测结果.zip {self.batch_name}-${{sample_count}}例样本检测结果
                 """
             )
         self.sample_num = len(vcf_list)
@@ -125,23 +123,22 @@ class AnalysisPipePrinter():
 
         with open(script_file, 'w') as outf:
             outf.write(
-                f"""
-                cat {self.map_file} | cut -f 1 | while read line; do echo -ne "$line\t" && grep "Fraction of Target Reads in all reads" {self.bam_dir}/${{line}}_buhuo_stat/coverage.report | awk '{{gsub(/%/, "", $NF); print $NF}}'; done > {self.stat_dir}/捕获效率统计.xls
-                sed -i '1iSample\tCapture_rate(%)' {self.result_dir}/捕获效率统计.xls
-                cat {self.map_file}  |cut -f 1  |while read line ;do echo -ne "$line\t" && zcat {self.bam_dir}/$line.bed.stat.gz |tail -1 ;done | awk '{{print $1"\t"$7"\t"$9}}' > {self.result_dir}/探针覆盖区域统计.xls
-                sed -i '1iSample\tCoverage(%)\tAverage_depth' {self.result_dir}/探针覆盖区域统计.xls
-                cat {self.map_file} | cut -f 1 | while read line; do  echo -ne "$line\t" &&  awk -v lines1=$(wc -l < {self.snp_list}) -v lines2=$(wc -l < {self.bam_dir}/"$line".snp.depth.xls) 'BEGIN {{ printf "%.2f\n", (lines2/lines1)*100 }}' ; done > {self.result_dir}/位点检出统计.xls
-                sed -i '1iSample\tSite_detection_rate(%)' {self.result_dir}/位点检出统计.xls
-                paste {self.result_dir}/位点检出统计.xls  {self.result_dir}/捕获效率统计.xls  {self.result_dir}/探针覆盖区域统计.xls | cut -f 1,2,4,6,7 > {self.result_dir}/stat.xls
-                {self.python3} {self.script_path}/parse_bwa_stat.py {self.map_file} {Path(self.config["out_dir"]) / self.config["batch_name"] / "01.BWA"} {self.genome_length}
-                {self.python3} {self.script_path}/GT.py --input {self.result_dir}/final.chip.filtdp.vcf.gz --output {self.vcfstat_dir}/chip_GT.xls --min_dp 4
-                {self.python3} {self.script_path}/snp_stat.py {self.vcfstat_dir}/chip_GT.xls {self.vcfstat_dir}/chip_snp_stat.xls
-                {self.python3} {self.script_path}/sample.stat.py {self.vcfstat_dir}/chip_GT.xls {self.vcfstat_dir}/chip_sample_stat.xls
-                cat {self.result_dir}/bwa_result.xls | cut -f 1,2,4,7 > {self.report_dir}/stat/bwa_result.xls
-                cp {self.result_dir}/stat.xls {self.report_dir}/stat
-                cp {self.vcfstat_dir}/chip_snp_stat.xls  {self.report_dir}/SNP
-                cp {self.vcfstat_dir}/chip_sample_stat.xls  {self.report_dir}/SNP
-                {self.python3} {self.script_path}/genotype_boxplot.py --snp_stat {self.report_dir}/SNP/chip_snp_stat.xls --spl_stat {self.report_dir}/SNP/chip_sample_stat.xls --outpath {self.report_dir}/SNP
-                required_files=("{self.report_dir}/stat/bwa_result.xls" "{self.report_dir}/stat/stat.xls" "{self.report_dir}/SNP/chip_snp_stat.xls" "{self.report_dir}/SNP/chip_sample_stat.xls" "{self.report_dir}/SNP/sample_boxplot.png" "{self.report_dir}/SNP/snp_boxplot.png"); all_files_exist=true; for file in "${{required_files[@]}}"; do if [ ! -f "$file" ]; then echo "错误: 必需文件不存在: $file"; all_files_exist=false; fi; done; if $all_files_exist; then echo "所有必需文件已就绪，开始生成报告..."; {self.python3} {self.script_path}/qiyereport/yexiang_genohtml.py -d {self.report_dir} -p 肉鸡10K育种芯片 -n AI驱动的育种检测体系及智能分析流程构建 -c GZBY20260002-BC01-01 -o {self.report_dir} --template {self.script_path}/qiyereport/template/full_report.html --src-dir {self.script_path}/qiyereport/src/ --copy-static -k AI驱动的育种检测体系及智能分析流程构建 -s {self.sample_num}; else echo "错误: 缺少必需文件，无法生成报告"; exit 1; fi
+                f"""cat {self.map_file} | cut -f 1 | while read line; do echo -ne "$line\t" && grep "Fraction of Target Reads in all reads" {self.bam_dir}/${{line}}_buhuo_stat/coverage.report | awk '{{gsub(/%/, "", $NF); print $NF}}'; done > {self.stat_dir}/捕获效率统计.xls
+sed -i '1iSample\tCapture_rate(%)' {self.result_dir}/捕获效率统计.xls
+cat {self.map_file}  |cut -f 1  |while read line ;do echo -ne "$line\t" && zcat {self.bam_dir}/$line.bed.stat.gz |tail -1 ;done | awk '{{print $1"\t"$7"\t"$9}}' > {self.result_dir}/探针覆盖区域统计.xls
+sed -i '1iSample\tCoverage(%)\tAverage_depth' {self.result_dir}/探针覆盖区域统计.xls
+cat {self.map_file} | cut -f 1 | while read line; do  echo -ne "$line\t" &&  awk -v lines1=$(wc -l < {self.snp_list}) -v lines2=$(wc -l < {self.bam_dir}/"$line".snp.depth.xls) 'BEGIN {{ printf "%.2f\n", (lines2/lines1)*100 }}' ; done > {self.result_dir}/位点检出统计.xls
+sed -i '1iSample\tSite_detection_rate(%)' {self.result_dir}/位点检出统计.xls
+paste {self.result_dir}/位点检出统计.xls  {self.result_dir}/捕获效率统计.xls  {self.result_dir}/探针覆盖区域统计.xls | cut -f 1,2,4,6,7 > {self.result_dir}/stat.xls
+{self.python3} {self.script_path}/parse_bwa_stat.py {self.map_file} {Path(self.config["out_dir"]) / self.config["batch_name"] / "01.BWA"} {self.genome_length}
+{self.python3} {self.script_path}/GT.py --input {self.result_dir}/final.chip.filtdp.vcf.gz --output {self.vcfstat_dir}/chip_GT.xls --min_dp 4
+{self.python3} {self.script_path}/snp_stat.py {self.vcfstat_dir}/chip_GT.xls {self.vcfstat_dir}/chip_snp_stat.xls
+{self.python3} {self.script_path}/sample.stat.py {self.vcfstat_dir}/chip_GT.xls {self.vcfstat_dir}/chip_sample_stat.xls
+cat {self.result_dir}/bwa_result.xls | cut -f 1,2,4,7 > {self.report_dir}/stat/bwa_result.xls
+cp {self.result_dir}/stat.xls {self.report_dir}/stat
+cp {self.vcfstat_dir}/chip_snp_stat.xls  {self.report_dir}/SNP
+cp {self.vcfstat_dir}/chip_sample_stat.xls  {self.report_dir}/SNP
+{self.python3} {self.script_path}/genotype_boxplot.py --snp_stat {self.report_dir}/SNP/chip_snp_stat.xls --spl_stat {self.report_dir}/SNP/chip_sample_stat.xls --outpath {self.report_dir}/SNP
+required_files=("{self.report_dir}/stat/bwa_result.xls" "{self.report_dir}/stat/stat.xls" "{self.report_dir}/SNP/chip_snp_stat.xls" "{self.report_dir}/SNP/chip_sample_stat.xls" "{self.report_dir}/SNP/sample_boxplot.png" "{self.report_dir}/SNP/snp_boxplot.png"); all_files_exist=true; for file in "${{required_files[@]}}"; do if [ ! -f "$file" ]; then echo "错误: 必需文件不存在: $file"; all_files_exist=false; fi; done; if $all_files_exist; then echo "所有必需文件已就绪，开始生成报告..."; {self.python3} {self.script_path}/qiyereport/yexiang_genohtml.py -d {self.report_dir} -p 肉鸡10K育种芯片 -n AI驱动的育种检测体系及智能分析流程构建 -c GZBY20260002-BC01-01 -o {self.report_dir} --template {self.script_path}/qiyereport/template/full_report.html --src-dir {self.script_path}/qiyereport/src/ --copy-static -k AI驱动的育种检测体系及智能分析流程构建 -s {self.sample_num}; else echo "错误: 缺少必需文件，无法生成报告"; exit 1; fi
                 """
             )

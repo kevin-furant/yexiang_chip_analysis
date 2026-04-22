@@ -229,6 +229,8 @@ def main(argv: list[str] | None = None) -> int:
     submitted_samples: set[str] = set()
     final_stage_submitted = False
     round_index = 0
+    done_count = 0
+    fail_count = 0
 
     if args.command == "update":
         sample = args.sample
@@ -250,8 +252,14 @@ def main(argv: list[str] | None = None) -> int:
         active_samples_map = SampleSyncChecker(db_file=db_file, data_dir=config_data["fq_xj_dir"]).collect_pending_samples()
         active_samples = list(active_samples_map.keys())
         sample_scope = set(active_samples)
-        if not active_samples:
+        if not active_samples and (done_count + fail_count) < total_samples_count:
             sleep(max(args.interval, 1) * 60)
+            running_samples = _fetch_samples_by_status(db_file, "running")
+            done_count = _count_status(db_file, "done")
+            fail_count = _count_status(db_file, "fail")
+            print(
+                f"running={len(running_samples)}, done={done_count}, fail={fail_count}"
+            )
             continue
         sample_info = {sample: [map_pairs[sample][0], map_pairs[sample][1]] for sample in active_samples}
         inserted = _insert_new_samples(db_file, active_samples)
