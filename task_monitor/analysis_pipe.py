@@ -26,9 +26,9 @@ class AnalysisPipePrinter():
         self.samtools = os.getenv("SAMTOOLS")
         self.cpu_half = math.floor(self.cpu / 2)
         self.bam_dir = Path(self.config["out_dir"]) / self.config["batch_name"] / "01.BWA/bam"
-        self.stat_dir = self.config["out_dir"] / self.config["batch_name"] / "01.BWA/stat_tmp"
-        self.unmap_dir = self.config["out_dir"] / self.config["batch_name"] / "01.BWA/unmapped"
-        self.result_dir = self.config["out_dir"] / self.config["batch_name"] / "01.BWA/result"
+        self.stat_dir = Path(self.config["out_dir"]) / self.config["batch_name"] / "01.BWA/stat_tmp"
+        self.unmap_dir = Path(self.config["out_dir"]) / self.config["batch_name"] / "01.BWA/unmapped"
+        self.result_dir = Path(self.config["out_dir"]) / self.config["batch_name"] / "01.BWA/result"
         self.vcfstat_dir = Path(self.config["out_dir"]) / self.config["batch_name"] / "01.BWA/vcfstat"
         self.report_dir = Path(self.config["out_dir"]) / self.config["batch_name"] / "report"
         self.snp_list = self.config["snp_list"]
