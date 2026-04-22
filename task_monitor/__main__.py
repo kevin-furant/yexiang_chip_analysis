@@ -263,7 +263,7 @@ def main(argv: list[str] | None = None) -> int:
             single_step_run_shell = out_dir / "single_step_run.sh"
             AnalysisPipePrinter(sample_list=to_submit, config_file=config_file).print_single_step(single_script)
             _write_work_shell(single_step_run_shell, single_script, 18, "82G", 20)
-            proc = _run_submit(single_step_run_shell, cwd= out_dir / "00.bin")
+            proc = _run_submit(single_step_run_shell, cwd=out_dir)
             print(
                 f"[OK] 已投递 single_step 批次{round_index}: {len(to_submit)} 样本, "
                 f"pid={proc.pid}, script={single_script}"
@@ -315,7 +315,7 @@ def main(argv: list[str] | None = None) -> int:
                 comment=True,
                 append=True,
             )
-            proc = _run_submit(work_script, cwd= out_dir / "00.bin")
+            proc = _run_submit(work_script, cwd=out_dir)
             final_stage_submitted = True
             print(f"[OK] 已投递汇总流程: pid={proc.pid}, script={work_script}")
             print("[OK] 全部样本已完成 single_step，值守进程退出。")
