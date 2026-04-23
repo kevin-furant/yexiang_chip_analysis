@@ -263,7 +263,6 @@ def main(argv: list[str] | None = None) -> int:
                 f"running={len(running_samples)}, done={done_count}, fail={fail_count}"
             )
             continue
-        sample_info = {sample: [map_pairs[sample][0], map_pairs[sample][1]] for sample in active_samples}
         inserted = _insert_new_samples(db_file, active_samples)
         print(f"[OK] 已载入样本 {len(active_samples)} 个，新增入库 {inserted} 个。")
         to_submit = sample_scope
@@ -297,10 +296,10 @@ def main(argv: list[str] | None = None) -> int:
         )
 
         if not final_stage_submitted and done_count == total_samples_count:
-            printer = AnalysisPipePrinter(sample_list=set(sample_info.keys()), config_file=config_file)
+            printer = AnalysisPipePrinter(sample_list=set(map_pairs.keys()), config_file=config_file)
             vcf_list = [
                 str(printer.bam_dir / f"{sample}.fill.vcf.gz")
-                for sample in sample_info.keys()
+                for sample in map_pairs.keys()
             ]
             batch_script = out_dir / "batch_step.sh"
             report_script = out_dir / "report_step.sh"
