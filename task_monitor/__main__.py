@@ -322,7 +322,7 @@ def main(argv: list[str] | None = None) -> int:
                 lines=40,
                 mem="82G",
                 cpu=20,
-                comment=True,
+                comment=False,
                 append=True,
             )
             proc = _run_submit(work_script, cwd=out_dir)
