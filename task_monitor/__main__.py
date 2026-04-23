@@ -270,7 +270,7 @@ def main(argv: list[str] | None = None) -> int:
         batch_sample_count = len(to_submit)
         if to_submit:
             single_script = out_dir / f"single_step_{round_index}.sh"
-            single_step_run_shell = out_dir / "single_step_run.sh"
+            single_step_run_shell = out_dir / f"single_step_{round_index}_run.sh"
             AnalysisPipePrinter(sample_list=to_submit, config_file=config_file).print_single_step(single_script)
             _write_work_shell(single_step_run_shell, single_script, 14, "82G", 20)
             proc = _run_submit(single_step_run_shell, cwd=out_dir)
