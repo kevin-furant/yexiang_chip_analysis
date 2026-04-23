@@ -26,6 +26,7 @@ class SampleSyncChecker:
     def __init__(self, data_dir: str | Path, db_file: str | Path):
         self.data_dir = Path(data_dir)
         self.db_file = Path(db_file)
+        self._md5_manifest_cache: dict[str, str] | None = None
         if not self.data_dir.exists() or not self.data_dir.is_dir():
             raise FileNotFoundError(f"数据目录不存在或不是目录: {self.data_dir}")
 
@@ -114,30 +115,96 @@ class SampleSyncChecker:
         match = re.search(r"\b[a-fA-F0-9]{32}\b", content)
         return match.group(0).lower() if match else None
 
-    def _find_md5_file(self, fq_file: Path) -> Path | None:
-        candidates = [
-            Path(str(fq_file) + ".md5"),
-            fq_file.with_suffix(".md5"),
-        ]
-        seen: set[Path] = set()
-        for candidate in candidates:
-            if candidate in seen:
-                continue
-            seen.add(candidate)
-            if candidate.exists() and candidate.is_file():
-                return candidate
-        return None
+    def _load_md5_manifest(self) -> dict[str, str]:
+        if self._md5_manifest_cache is not None:
+            return self._md5_manifest_cache
 
-    def check_md5(self, fq_file: Path, md5_file: Path) -> bool:
-        """校验 fastq 文件与 md5 文件是否一致。"""
+        md5_txt = self.data_dir / "md5.txt"
+        mapping: dict[str, str] = {}
+        if md5_txt.exists() and md5_txt.is_file():
+            for raw_line in md5_txt.read_text(encoding="utf-8", errors="ignore").splitlines():
+                line = raw_line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                cols = line.split(maxsplit=1)
+                if len(cols) != 2:
+                    continue
+                md5_value = cols[0].strip().lower()
+                if not re.fullmatch(r"[a-f0-9]{32}", md5_value):
+                    continue
+                file_name = cols[1].strip().lstrip("*")
+                if not file_name:
+                    continue
+                mapping[file_name] = md5_value
+                mapping[Path(file_name).name] = md5_value
+
+        self._md5_manifest_cache = mapping
+        return mapping
+
+    def _get_expected_md5(self, fq_file: Path) -> str | None:
+        mapping = self._load_md5_manifest()
+        rel_key: str | None = None
         try:
-            expected_md5 = self._read_expected_md5(md5_file)
+            rel_key = str(fq_file.relative_to(self.data_dir))
+        except ValueError:
+            rel_key = None
+        return mapping.get(fq_file.name) or (mapping.get(rel_key) if rel_key else None)
+
+    def check_md5(self, fq_file: Path, expected_md5: str | None) -> bool:
+        """校验 fastq 文件与期望 md5 是否一致。"""
+        try:
             if not expected_md5:
                 return False
             actual_md5 = self._calc_md5(fq_file).lower()
             return actual_md5 == expected_md5
         except OSError:
             return False
+
+    @staticmethod
+    def clear_running_and_fail_samples(
+        db_file: str | Path,
+        max_retries: int = 5,
+        retry_wait_seconds: float = 0.2,
+    ) -> int:
+        db_path = Path(db_file)
+        if not db_path.exists():
+            return 0
+
+        sql = "DELETE FROM task_status WHERE bwa2gvcf IN ('running', 'fail')"
+        last_error: Exception | None = None
+        for attempt in range(1, max_retries + 1):
+            conn: sqlite3.Connection | None = None
+            in_transaction = False
+            try:
+                conn = sqlite3.connect(
+                    db_path,
+                    timeout=5.0,
+                    isolation_level=None,
+                    check_same_thread=False,
+                )
+                conn.execute("PRAGMA journal_mode=WAL;")
+                conn.execute("PRAGMA synchronous=NORMAL;")
+                conn.execute("PRAGMA busy_timeout=5000;")
+                conn.execute("BEGIN IMMEDIATE;")
+                in_transaction = True
+                cur = conn.execute(sql)
+                conn.execute("COMMIT;")
+                return cur.rowcount
+            except sqlite3.OperationalError as exc:
+                last_error = exc
+                if conn is not None and in_transaction:
+                    conn.execute("ROLLBACK;")
+                msg = str(exc).lower()
+                if "locked" not in msg and "busy" not in msg:
+                    raise
+                if attempt >= max_retries:
+                    break
+                sleep(retry_wait_seconds * attempt)
+            finally:
+                if conn is not None:
+                    conn.close()
+
+        raise RuntimeError(f"清理 running/fail 样本失败，数据库持续繁忙: {last_error}")
 
     def compare_with_db(
         self,
@@ -172,8 +239,8 @@ class SampleSyncChecker:
 
     def _pair_md5_ok(self, pair: tuple[Path, Path]) -> bool:
         for fq_file in pair:
-            md5_file = self._find_md5_file(fq_file)
-            if md5_file is None or not self.check_md5(fq_file, md5_file):
+            expected_md5 = self._get_expected_md5(fq_file)
+            if not self.check_md5(fq_file, expected_md5):
                 return False
         return True
 

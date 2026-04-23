@@ -168,6 +168,11 @@ def _run_submit(script_file: Path, cwd: Path) -> subprocess.Popen[str]:
     cmd_text = f"nohup bash {shlex.quote(str(script_file))} >/dev/null 2>&1 &"
     return subprocess.Popen(cmd_text, cwd=cwd, shell=True, text=True)
 
+
+def _cleanup_non_terminal_samples(db_file: Path) -> None:
+    deleted = SampleSyncChecker.clear_running_and_fail_samples(db_file)
+    print(f"[INFO] 退出前清理 running/fail 样本记录: {deleted} 条")
+
 # def _chunks(items: list[str], size: int) -> list[list[str]]:
 #     if size <= 0:
 #         return [items]
@@ -250,91 +255,94 @@ def main(argv: list[str] | None = None) -> int:
             return 1
 
 
-    while True:
-        active_samples_map = SampleSyncChecker(db_file=db_file, data_dir=config_data["fq_xj_dir"]).collect_pending_samples()
-        active_samples = list(active_samples_map.keys())
-        sample_scope = set(active_samples)
-        if not active_samples and (done_count + fail_count) < total_samples_count:
-            sleep(max(args.interval, 1) * 60)
+    try:
+        while True:
+            active_samples_map = SampleSyncChecker(db_file=db_file, data_dir=config_data["fq_xj_dir"]).collect_pending_samples()
+            active_samples = list(active_samples_map.keys())
+            sample_scope = set(active_samples)
+            if not active_samples and (done_count + fail_count) < total_samples_count:
+                sleep(max(args.interval, 1) * 60)
+                running_samples = _fetch_samples_by_status(db_file, "running")
+                done_count = _count_status(db_file, "done")
+                fail_count = _count_status(db_file, "fail")
+                print(
+                    f"running={len(running_samples)}, done={done_count}, fail={fail_count}"
+                )
+                continue
+            inserted = _insert_new_samples(db_file, active_samples)
+            print(f"[OK] 已载入样本 {len(active_samples)} 个，新增入库 {inserted} 个。")
+            to_submit = sample_scope
+            batch_sample_count = len(to_submit)
+            if to_submit:
+                single_script = out_dir / f"single_step_{round_index}.sh"
+                single_step_run_shell = out_dir / f"single_step_{round_index}_run.sh"
+                AnalysisPipePrinter(sample_list=to_submit, config_file=config_file).print_single_step(single_script)
+                _write_work_shell(single_step_run_shell, single_script, 14, "82G", 20)
+                proc = _run_submit(single_step_run_shell, cwd=out_dir)
+                print(
+                    f"[OK] 已投递 single_step 批次{round_index}: {len(to_submit)} 样本, "
+                    f"pid={proc.pid}, script={single_script}"
+                )
+                submitted_samples.update(to_submit)
+                print(
+                    f"[INFO] 轮次{round_index}: total={batch_sample_count}"
+                )
+                round_index += 1
+                to_submit = set()
             running_samples = _fetch_samples_by_status(db_file, "running")
             done_count = _count_status(db_file, "done")
             fail_count = _count_status(db_file, "fail")
+            if done_count == total_samples_count:
+                print(f"[OK] 所有样本已处理完成, 将进行合并步骤及报告生成！")
+            if done_count + fail_count == total_samples_count and fail_count > 0:
+                print(f"[Fail] 所有样本已处理完成，但是有样本任务失败，退出任务")
+                return 1
             print(
                 f"running={len(running_samples)}, done={done_count}, fail={fail_count}"
             )
-            continue
-        inserted = _insert_new_samples(db_file, active_samples)
-        print(f"[OK] 已载入样本 {len(active_samples)} 个，新增入库 {inserted} 个。")
-        to_submit = sample_scope
-        batch_sample_count = len(to_submit)
-        if to_submit:
-            single_script = out_dir / f"single_step_{round_index}.sh"
-            single_step_run_shell = out_dir / f"single_step_{round_index}_run.sh"
-            AnalysisPipePrinter(sample_list=to_submit, config_file=config_file).print_single_step(single_script)
-            _write_work_shell(single_step_run_shell, single_script, 14, "82G", 20)
-            proc = _run_submit(single_step_run_shell, cwd=out_dir)
-            print(
-                f"[OK] 已投递 single_step 批次{round_index}: {len(to_submit)} 样本, "
-                f"pid={proc.pid}, script={single_script}"
-            )
-            submitted_samples.update(to_submit)
-            print(
-                f"[INFO] 轮次{round_index}: total={batch_sample_count}"
-            )
-            round_index += 1
-            to_submit = set()
-        running_samples = _fetch_samples_by_status(db_file, "running")
-        done_count = _count_status(db_file, "done")
-        fail_count = _count_status(db_file, "fail")
-        if done_count == total_samples_count:
-            print(f"[OK] 所有样本已处理完成, 将进行合并步骤及报告生成！")
-        if done_count + fail_count == total_samples_count and fail_count > 0:
-            print(f"[Fail] 所有样本已处理完成，但是有样本任务失败，退出任务")
-            return 1
-        print(
-            f"running={len(running_samples)}, done={done_count}, fail={fail_count}"
-        )
 
-        if not final_stage_submitted and done_count == total_samples_count:
-            printer = AnalysisPipePrinter(sample_list=set(map_pairs.keys()), config_file=config_file)
-            vcf_list = [
-                str(printer.bam_dir / f"{sample}.fill.vcf.gz")
-                for sample in map_pairs.keys()
-            ]
-            batch_script = out_dir / "batch_step.sh"
-            report_script = out_dir / "report_step.sh"
-            work_script = out_dir / "work.sh"
-            printer.print_batch_step(batch_script, vcf_list=vcf_list)
-            printer.print_report_step(report_script)
-            _write_work_shell(
-                work_shell=work_script,
-                shell=batch_script,
-                lines=9,
-                mem="30G",
-                cpu=4,
-                comment=False,
-                append=False,
-            )
-            _write_work_shell(
-                work_shell=work_script,
-                shell=report_script,
-                lines=40,
-                mem="82G",
-                cpu=20,
-                comment=False,
-                append=True,
-            )
-            proc = _run_submit(work_script, cwd=out_dir)
-            final_stage_submitted = True
-            print(f"[OK] 已投递汇总流程: pid={proc.pid}, script={work_script}")
-            print("[OK] 全部样本已完成 single_step，值守进程退出。")
-            return 0
+            if not final_stage_submitted and done_count == total_samples_count:
+                printer = AnalysisPipePrinter(sample_list=set(map_pairs.keys()), config_file=config_file)
+                vcf_list = [
+                    str(printer.bam_dir / f"{sample}.fill.vcf.gz")
+                    for sample in map_pairs.keys()
+                ]
+                batch_script = out_dir / "batch_step.sh"
+                report_script = out_dir / "report_step.sh"
+                work_script = out_dir / "work.sh"
+                printer.print_batch_step(batch_script, vcf_list=vcf_list)
+                printer.print_report_step(report_script)
+                _write_work_shell(
+                    work_shell=work_script,
+                    shell=batch_script,
+                    lines=9,
+                    mem="30G",
+                    cpu=4,
+                    comment=False,
+                    append=False,
+                )
+                _write_work_shell(
+                    work_shell=work_script,
+                    shell=report_script,
+                    lines=40,
+                    mem="82G",
+                    cpu=20,
+                    comment=False,
+                    append=True,
+                )
+                proc = _run_submit(work_script, cwd=out_dir)
+                final_stage_submitted = True
+                print(f"[OK] 已投递汇总流程: pid={proc.pid}, script={work_script}")
+                print("[OK] 全部样本已完成 single_step，值守进程退出。")
+                return 0
 
-        if args.once:
-            print("[INFO] --once 模式，执行一轮后退出。")
-            return 0
+            if args.once:
+                print("[INFO] --once 模式，执行一轮后退出。")
+                return 0
 
-        sleep(max(args.interval, 1) * 60)
+            sleep(max(args.interval, 1) * 60)
+    finally:
+        _cleanup_non_terminal_samples(db_file)
 
 
 if __name__ == "__main__":
