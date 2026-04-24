@@ -1,4 +1,9 @@
 {
+    "project_name": "鸡",
+    "project_id": "ji",
+    "chip_id": "GRCg7b",
+    "customer_name": "张三",
+    "chromosome_num": 20,
     "fa": "/work/share/ac8t81mwbn/pipline/pip_test/05.ji/00.ref/Gallus_gallus.bGalGal1.mat.broiler.GRCg7b.dna.toplevel.fa",
     "cpu": 20,
     "batch_name": "GZBY20260002-BC01-01",
