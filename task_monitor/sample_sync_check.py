@@ -115,11 +115,63 @@ class SampleSyncChecker:
         match = re.search(r"\b[a-fA-F0-9]{32}\b", content)
         return match.group(0).lower() if match else None
 
+    def sync_md5_manifest_files(self) -> Path | None:
+        """
+        同步 data_dir 下的 md5 清单文件：
+        1) 仅 md5.txt 存在时，重命名为 md5.update.txt，并备份一份 md5.{index_count}.txt
+        2) md5.txt 与 md5.update.txt 同时存在时，
+           - 先将 md5.txt 内容追加到 md5.update.txt
+           - 再将 md5.txt 重命名为 md5.{index_count}.txt
+        """
+        md5_txt = self.data_dir / "md5.txt"
+        md5_update_txt = self.data_dir / "md5.update.txt"
+
+        if not md5_txt.exists():
+            return None
+        if not md5_txt.is_file():
+            raise RuntimeError(f"md5.txt 不是常规文件: {md5_txt}")
+        if md5_update_txt.exists() and not md5_update_txt.is_file():
+            raise RuntimeError(f"md5.update.txt 不是常规文件: {md5_update_txt}")
+
+        index_count = 1
+        for old_md5_file in self.data_dir.glob("md5.*.txt"):
+            matched = re.fullmatch(r"md5\.(\d+)\.txt", old_md5_file.name)
+            if not matched:
+                continue
+            index_count = max(index_count, int(matched.group(1)) + 1)
+        archived_md5_txt = self.data_dir / f"md5.{index_count}.txt"
+        while archived_md5_txt.exists():
+            index_count += 1
+            archived_md5_txt = self.data_dir / f"md5.{index_count}.txt"
+
+        if not md5_update_txt.exists():
+            md5_txt.rename(md5_update_txt)
+            archived_md5_txt.write_bytes(md5_update_txt.read_bytes())
+            self._md5_manifest_cache = None
+            return md5_update_txt
+
+        append_content = md5_txt.read_text(encoding="utf-8", errors="ignore")
+        if append_content:
+            need_sep_newline = False
+            if md5_update_txt.stat().st_size > 0 and not append_content.startswith("\n"):
+                with md5_update_txt.open("rb") as fh:
+                    fh.seek(-1, 2)
+                    need_sep_newline = fh.read(1) != b"\n"
+            with md5_update_txt.open("a", encoding="utf-8") as fh:
+                if need_sep_newline:
+                    fh.write("\n")
+                fh.write(append_content)
+
+        md5_txt.rename(archived_md5_txt)
+        self._md5_manifest_cache = None
+        return archived_md5_txt
+
     def _load_md5_manifest(self) -> dict[str, str]:
+        self.sync_md5_manifest_files()
         if self._md5_manifest_cache is not None:
             return self._md5_manifest_cache
 
-        md5_txt = self.data_dir / "md5.txt"
+        md5_txt = self.data_dir / "md5.update.txt"
         mapping: dict[str, str] = {}
         if md5_txt.exists() and md5_txt.is_file():
             for raw_line in md5_txt.read_text(encoding="utf-8", errors="ignore").splitlines():
