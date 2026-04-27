@@ -22,11 +22,25 @@ def read_chip_name_tozh(chip_name_tozh_path: Path = chipName_map) -> dict:
         chip_name_tozh_data = json.load(f)
     return chip_name_tozh_data
 
-def generate_config(out_json_path: Path, **kwargs: dict[str, Any]) -> Path:
+def generate_config(out_json_path: Path, **kwargs: Any) -> Path:
     gcap_data = read_gCap(gCap_path)
+    chip_id = kwargs.get('chip_id')
+    if not chip_id:
+        raise ValueError('generate_config 需要传入 chip_id')
+    if chip_id not in gcap_data:
+        raise KeyError(f'chip_id={chip_id} 不在 gCap 配置中')
+
+    source_chip_config = gcap_data[chip_id]
+    if not isinstance(source_chip_config, dict):
+        raise TypeError(f'gCap 中 chip_id={chip_id} 的配置不是字典')
+
+    _chip_dict = dict(source_chip_config)
+    _chip_dict['chip_id'] = chip_id
     for key, value in kwargs.items():
-        if key in gcap_data:
+        if key == 'chip_id':
             continue
-        gcap_data[key] = value
-    out_json_path.write_text(json.dumps(gcap_data, indent=4, ensure_ascii=False))
+        _chip_dict[key] = value
+
+    out_json_path.parent.mkdir(parents=True, exist_ok=True)
+    out_json_path.write_text(json.dumps(_chip_dict, indent=4, ensure_ascii=False), encoding='utf-8')
     return out_json_path

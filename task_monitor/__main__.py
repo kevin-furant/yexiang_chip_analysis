@@ -324,6 +324,7 @@ def main(argv: list[str] | None = None) -> int:
             )
         except Exception as e:
             print(f"[INIT] 配置文件生成失败: {e}")
+            return 1
         print(f"[INIT] 生成配置文件成功")
         return 0
 
