@@ -310,6 +310,9 @@ def main(argv: list[str] | None = None) -> int:
             return 1
 
     if args.command == "init":
+        if config_file.exists():
+            print(f"[WARN] 配置文件 {args.config_file} 已存在")
+            return 0
         try:
             generate_config(
                 out_json_path = args.config_file,
