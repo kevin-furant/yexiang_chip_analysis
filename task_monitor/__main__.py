@@ -415,7 +415,7 @@ def main(argv: list[str] | None = None) -> int:
                 batch_script = out_dir / "batch_step.sh"
                 report_script = out_dir / "report_step.sh"
                 work_script = out_dir / "work.sh"
-                printer.print_batch_step(batch_script, vcf_list=vcf_list)
+                printer.print_batch_step(batch_script, vcf_list=vcf_list, chromos_num=config_data["chromosome_num"])
                 printer.print_report_step(report_script, config_data=config_data)
                 _write_work_shell(
                     work_shell=work_script,

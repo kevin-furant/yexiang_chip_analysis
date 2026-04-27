@@ -88,7 +88,7 @@ mkdir -p {self.bam_dir}/{sample_name}_buhuo_stat
 """
                 )
 
-    def print_batch_step(self, script_file: Path, vcf_list: list):
+    def print_batch_step(self, script_file: Path, vcf_list: list, chromos_num: int):
         "批次任务:所有样本都跑完比对后打印gvcf合并输出的脚本"
         if not self.result_dir.exists():
             self.result_dir.mkdir(parents=True, exist_ok=True)
@@ -103,7 +103,7 @@ mkdir -p {self.bam_dir}/{sample_name}_buhuo_stat
 {self.bcftools} +setGT {self.result_dir}/final.chip.2M.vcf.gz -o {self.result_dir}/final.chip.filtdp.vcf -- -t q -n . -i 'FMT/DP<4'
 {self.bgzip} {self.result_dir}/final.chip.filtdp.vcf
 {self.bcftools} index {self.result_dir}/final.chip.filtdp.vcf.gz
-sample_count=$({self.bcftools} query -l {self.result_dir}/final.chip.filtdp.vcf.gz | wc -l) && {self.plink} --vcf {self.result_dir}/final.chip.filtdp.vcf.gz --make-bed --out "{self.result_dir}/{self.batch_name}-${{sample_count}}例样本检测结果" --allow-extra-chr --chr-set 80 --double-id && {self.plink} --vcf {self.result_dir}/final.chip.filtdp.vcf.gz --recode --out "{self.result_dir}/{self.batch_name}-${{sample_count}}例样本检测结果" --allow-extra-chr --chr-set 80 --double-id && cd {self.result_dir} && mkdir {self.batch_name}-${{sample_count}}例样本检测结果 && mv {self.batch_name}-${{sample_count}}例样本检测结果.ped {self.batch_name}-${{sample_count}}例样本检测结果 && mv {self.batch_name}-${{sample_count}}例样本检测结果.map {self.batch_name}-${{sample_count}}例样本检测结果 && zip -r {self.batch_name}-${{sample_count}}例样本检测结果.zip {self.batch_name}-${{sample_count}}例样本检测结果
+sample_count=$({self.bcftools} query -l {self.result_dir}/final.chip.filtdp.vcf.gz | wc -l) && {self.plink} --vcf {self.result_dir}/final.chip.filtdp.vcf.gz --make-bed --out "{self.result_dir}/{self.batch_name}-${{sample_count}}例样本检测结果" --allow-extra-chr --chr-set {chromos_num} --double-id && {self.plink} --vcf {self.result_dir}/final.chip.filtdp.vcf.gz --recode --out "{self.result_dir}/{self.batch_name}-${{sample_count}}例样本检测结果" --allow-extra-chr --chr-set {chromos_num} --double-id && cd {self.result_dir} && mkdir {self.batch_name}-${{sample_count}}例样本检测结果 && mv {self.batch_name}-${{sample_count}}例样本检测结果.ped {self.batch_name}-${{sample_count}}例样本检测结果 && mv {self.batch_name}-${{sample_count}}例样本检测结果.map {self.batch_name}-${{sample_count}}例样本检测结果 && zip -r {self.batch_name}-${{sample_count}}例样本检测结果.zip {self.batch_name}-${{sample_count}}例样本检测结果
 """
             )
         self.sample_num = len(vcf_list)
