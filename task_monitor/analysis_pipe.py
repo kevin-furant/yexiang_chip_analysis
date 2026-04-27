@@ -26,7 +26,7 @@ class AnalysisPipePrinter():
         self.cpu = self.config["cpu"]
         self.ref_genome = self.config["fa"]
         self.samtools = os.getenv("SAMTOOLS")
-        self.cpu_half = math.floor(self.cpu / 2)
+        self.cpu_half = math.floor(int(self.cpu) / 2)
         self.bam_dir = Path(self.config["out_dir"]) / self.config["batch_name"] / "01.BWA/bam"
         self.stat_dir = Path(self.config["out_dir"]) / self.config["batch_name"] / "01.BWA/stat_tmp"
         self.unmap_dir = Path(self.config["out_dir"]) / self.config["batch_name"] / "01.BWA/unmapped"
