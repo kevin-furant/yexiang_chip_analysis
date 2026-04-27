@@ -178,6 +178,13 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help="批次名称，如果不填则使用合同编号作为批次名称"
     )
+    init_parser.add_argument(
+        "--cpu",
+        type=int,
+        default=20,
+        help="CPU核数"
+    )
+
     notify_parser = subparsers.add_parser("notify", help="发送邮件通知")
     notify_parser.add_argument(
         "--send",
@@ -293,7 +300,8 @@ def main(argv: list[str] | None = None) -> int:
                 out_dir = args.project_path,
                 project_name = args.project_name,
                 contract_id = args.contract,
-                batch_name = args.batch_name if args.batch_name != None else args.contract
+                batch_name = args.batch_name if args.batch_name != None else args.contract,
+                cpu = args.cpu
             )
         except Exception as e:
             print(f"[INIT] 配置文件生成失败: {e}")
