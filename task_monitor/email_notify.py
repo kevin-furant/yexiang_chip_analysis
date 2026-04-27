@@ -13,7 +13,6 @@ from dotenv import load_dotenv
 ENV_FILE = (Path(__file__).parent / ".env").resolve()
 load_dotenv(ENV_FILE)
 
-
 def load_email_config_from_env() -> dict[str, str | int]:
     """
     从环境变量读取邮件配置。

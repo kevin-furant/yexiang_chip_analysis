@@ -1,0 +1,66 @@
+{
+    "ji_10K": {
+        "chromosome_num": 80,
+        "fa": "/work/share/ac8t81mwbn/pipline/gCap/ji_11K-1/genome/Gallus_gallus.bGalGal1.mat.broiler.GRCg7b.dna.toplevel.fa",
+        "snp_list": "/work/share/ac8t81mwbn/pipline/gCap/ji_11K-1/chip/10k.pos.list",
+        "bed": "/work/share/ac8t81mwbn/pipline/gCap/ji_11K-1/chip/probeCov.predict.bed",
+        "pos_gt": "/work/share/ac8t81mwbn/pipline/gCap/ji_11K-1/chip/10k.pos.gt",
+        "genome_length": 1053332251
+    },
+    "ji_11K-1": {
+        "chromosome_num": 80,
+        "fa": "/work/share/ac8t81mwbn/pipline/gCap/ji_11K-1/genome/Gallus_gallus.bGalGal1.mat.broiler.GRCg7b.dna.toplevel.fa",
+        "snp_list": "/work/share/ac8t81mwbn/pipline/gCap/ji_11K-1/chip/11K.guangming.pos.list",
+        "bed": "/work/share/ac8t81mwbn/pipline/gCap/ji_11K-1/chip/probeCov.predict.bed",
+        "pos_gt": "/work/share/ac8t81mwbn/pipline/gCap/ji_11K-1/chip/11K.guangming.pos.gt.list",
+        "genome_length": 1053332251
+    },
+    "ji_55K": {
+        "chromosome_num": 80,
+        "fa": "/work/share/ac8t81mwbn/pipline/gCap/ji_11K-1/genome/Gallus_gallus.bGalGal1.mat.broiler.GRCg7b.dna.toplevel.fa",
+        "snp_list": "/work/share/ac8t81mwbn/pipline/gCap/ji_55K/chip/loci.list",
+        "bed": "/work/share/ac8t81mwbn/pipline/gCap/ji_55K/chip/probeCov.predict.bed",
+        "pos_gt": "/work/share/ac8t81mwbn/pipline/gCap/ji_55K/chip/loci.list.gt",
+        "genome_length": 1053332251
+    },
+    "ji_85K": {
+        "chromosome_num": 80,
+        "fa": "/work/share/ac8t81mwbn/pipline/gCap/ji_85K/genome/Gallus_gallus.GRCg6a.dna.toplevel.fa",
+        "snp_list": "/work/share/ac8t81mwbn/pipline/gCap/ji_85K/chip/succ.pos",
+        "bed": "/work/share/ac8t81mwbn/pipline/gCap/ji_85K/chip/probeCov.predict.bed",
+        "pos_gt": "/work/share/ac8t81mwbn/pipline/gCap/ji_85K/chip/succ.pos.gt",
+        "genome_length": 1065365425
+    },
+    "cow_30K": {
+        "chromosome_num": 29,
+        "fa": "/work/share/ac8t81mwbn/pipline/gCap/cow_30K/genome/GCF_002263795.3_ARS-UCD2.0_genomic.fna",
+        "snp_list": "/work/share/ac8t81mwbn/pipline/gCap/cow_30K/chip/pos.list",
+        "bed": "/work/share/ac8t81mwbn/pipline/gCap/cow_30K/chip/probeCov.predict.bed",
+        "pos_gt": "/work/share/ac8t81mwbn/pipline/gCap/cow_30K/chip/pos.list.gt",
+        "genome_length": 2770686120
+    },
+    "cow_50K": {
+        "chromosome_num": 29,
+        "fa": "/work/share/ac8t81mwbn/pipline/gCap/cow_50K/genome/GCF_002263795.3_ARS-UCD2.0_genomic.fna",
+        "snp_list": "/work/share/ac8t81mwbn/pipline/gCap/cow_50K/chip/loci.list",
+        "bed": "/work/share/ac8t81mwbn/pipline/gCap/cow_50K/chip/probeCov.predict.bed",
+        "pos_gt": "/work/share/ac8t81mwbn/pipline/gCap/cow_50K/chip/loci.list.gt",
+        "genome_length": 2770686120
+    },
+    "horse_400bp": {
+        "chromosome_num": 32,
+        "fa": "/work/share/ac8t81mwbn/pipline/gCap/horse_400bp/genome/GCF_041296265.1_TB-T2T_genomic.fna",
+        "snp_list": "/work/share/ac8t81mwbn/pipline/gCap/horse_400bp/chip/loci.sort.list",
+        "bed": "/work/share/ac8t81mwbn/pipline/gCap/horse_400bp/chip/probeCov.predict.bed",
+        "pos_gt": "/work/share/ac8t81mwbn/pipline/gCap/horse_400bp/chip/loci.list.gt",
+        "genome_length": 2769454835
+    },
+    "pig_50K": {
+        "chromosome_num": 22,
+        "fa": "/work/share/ac8t81mwbn/pipline/gCap/pig_50K/genome/GCF_000003025.6_Sscrofa11.1_genomic.fna",
+        "snp_list": "/work/share/ac8t81mwbn/pipline/gCap/pig_50K/chip/loci.list",
+        "bed": "/work/share/ac8t81mwbn/pipline/gCap/pig_50K/chip/probeCov.predict.bed",
+        "pos_gt": "/work/share/ac8t81mwbn/pipline/gCap/pig_50K/chip/loci.list.gt",
+        "genome_length": 2501912388
+    }
+}

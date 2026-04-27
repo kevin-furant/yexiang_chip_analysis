@@ -14,8 +14,11 @@ from .init_db import init_step_tracker_db
 from .analysis_pipe import AnalysisPipePrinter
 from .sample_sync_check import SampleSyncChecker
 from .status_update import StatusUpdater
+from .pipe_init import generate_config
+from .email_notify import load_email_config_from_env, send_notify_email
 
 
+email_config = load_email_config_from_env()
 def _db_file_from_project(project_path: Path) -> Path:
     return project_path / "step_tracker.db"
 
@@ -98,9 +101,10 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--config-file",
+        dest="config_file",
         type=Path,
         default=Path("config.json"),
-        help="流程配置文件（JSON）",
+        help="流程配置文件(JSON)",
     )
     parser.add_argument(
         "--interval",
@@ -129,6 +133,57 @@ def _build_parser() -> argparse.ArgumentParser:
         help="需要修改的样本状态"
     )
 
+    init_parser = subparsers.add_parser("init", help="初始化流程配置")
+    init_parser.add_argument(
+        "--project_name",
+        type=str,
+        required=True,
+        help="项目中文名称"
+    )
+    init_parser.add_argument(
+        "--contract",
+        type=str,
+        required=True,
+        help="合同编号"
+    )
+    init_parser.add_argument(
+        "--customer",
+        type=Path,
+        required=True,
+        help="客户名称"
+    )
+    init_parser.add_argument(
+        "--chip-name",
+        dest="chip_name",
+        type=str,
+        required=True,
+        help="芯片名称"
+    )
+    init_parser.add_argument(
+        "--upload_path",
+        type=Path,
+        required=True,
+        help="fastq文件上传的路径"
+    )
+    init_parser.add_argument(
+        "--map-file",
+        dest="map_file",
+        type=Path,
+        required=True,
+        help="mapfile 批次所有样本fastq路径配置表"
+    )
+    init_parser.add_argument(
+        "--batch_name",
+        type=str,
+        default=None,
+        help="bed文件"
+    )
+    notify_parser = subparsers.add_parser("notify", help="发送邮件通知")
+    notify_parser.add_argument(
+        "--send",
+        action="store_true",
+        help="是否发送任务结束邮件通知"
+    )
     return parser
 
 def _load_mapfile_pairs(map_file: Path) -> dict[str, tuple[str, str]]:
@@ -254,6 +309,37 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[ERROR] 更新了样本 {sample} 的状态为 {status} 失败，请检查样本名是否正确")
             return 1
 
+    if args.command == "init":
+        try:
+            generate_config(
+                out_json_path = args.config_file,
+                customer_name = args.customer,
+                chip_id = args.chip_name,
+                fq_xj_dir = args.upload_path,
+                map_file = args.map_file,
+                out_dir = args.project_path,
+                project_name = args.project_name,
+                contract_id = args.contract,
+                batch_name = args.batch_name if args.batch_name != None else args.contract
+            )
+        except Exception as e:
+            print(f"[INIT] 配置文件生成失败: {e}")
+        print(f"[INIT] 生成配置文件成功")
+        return 0
+
+    if args.command == "notify":
+        if args.send:
+            send_notify_email(
+                subject = f"{config_data['project_name']} 任务完成",
+                body = f"{config_data['project_name']} 任务已经全部完成, 请检查结果生成。",
+                recipients = ['jinpeng.bi@glbizzia.com', 'zhexin.liu@glbizzia.com'],
+                smtp_host = str(email_config["MAIL_HOST"]),
+                smtp_port = int(email_config["MAIL_PORT"]),
+                smtp_user = str(email_config["MAIL_USER"]),
+                smtp_password = str(email_config["MAIL_PASSWORD"]),
+                sender = str(email_config["MAIL_SENDER"])
+            )
+            print("[INFO] 流程完成邮件已经发送")
 
     try:
         while True:
@@ -273,7 +359,21 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[OK] 已载入样本 {len(active_samples)} 个，新增入库 {inserted} 个。")
             to_submit = sample_scope
             batch_sample_count = len(to_submit)
+            notify = False
             if to_submit:
+                if not notify:
+                    send_notify_email(
+                        subject = f"{config_data['project_name']} 批量任务启动",
+                        body = f"{config_data['project_name']} 批量任务启动，已启动, 请等待流程运行完成。",
+                        recipients = ['jinpeng.bi@glbizzia.com', 'zhexin.liu@glbizzia.com'],
+                        smtp_host = str(email_config["MAIL_HOST"]),
+                        smtp_port = int(email_config["MAIL_PORT"]),
+                        smtp_user = str(email_config["MAIL_USER"]),
+                        smtp_password = str(email_config["MAIL_PASSWORD"]),
+                        sender = str(email_config["MAIL_SENDER"]),
+                    )
+                    print("[INFO] 流程启动邮件已经发送")
+                    notify = True
                 single_script = out_dir / f"single_step_{round_index}.sh"
                 single_step_run_shell = out_dir / f"single_step_{round_index}_run.sh"
                 AnalysisPipePrinter(sample_list=to_submit, config_file=config_file).print_single_step(single_script)
@@ -311,7 +411,7 @@ def main(argv: list[str] | None = None) -> int:
                 report_script = out_dir / "report_step.sh"
                 work_script = out_dir / "work.sh"
                 printer.print_batch_step(batch_script, vcf_list=vcf_list)
-                printer.print_report_step(report_script)
+                printer.print_report_step(report_script, config_data=config_data)
                 _write_work_shell(
                     work_shell=work_script,
                     shell=batch_script,
@@ -324,7 +424,7 @@ def main(argv: list[str] | None = None) -> int:
                 _write_work_shell(
                     work_shell=work_script,
                     shell=report_script,
-                    lines=40,
+                    lines=20,
                     mem="82G",
                     cpu=20,
                     comment=False,
