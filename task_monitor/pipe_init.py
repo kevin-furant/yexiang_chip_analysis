@@ -39,7 +39,7 @@ def generate_config(out_json_path: Path, **kwargs: Any) -> Path:
     for key, value in kwargs.items():
         if key == 'chip_id':
             continue
-        _chip_dict[key] = value
+        _chip_dict[key] = str(value)
 
     out_json_path.parent.mkdir(parents=True, exist_ok=True)
     out_json_path.write_text(json.dumps(_chip_dict, indent=4, ensure_ascii=False), encoding='utf-8')
