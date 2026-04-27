@@ -341,6 +341,7 @@ def main(argv: list[str] | None = None) -> int:
                 sender = str(email_config["MAIL_SENDER"])
             )
             print("[INFO] 流程完成邮件已经发送")
+        return 0
 
     try:
         while True:
