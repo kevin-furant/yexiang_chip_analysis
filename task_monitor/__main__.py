@@ -339,11 +339,11 @@ def main(argv: list[str] | None = None) -> int:
                 subject = f"{config_data['project_name']} 任务完成",
                 body = f"{config_data['project_name']} 任务已经全部完成, 请检查结果生成。",
                 recipients = ['jinpeng.bi@glbizzia.com', 'zhexin.liu@glbizzia.com'],
-                smtp_host = str(email_config["MAIL_HOST"]),
-                smtp_port = int(email_config["MAIL_PORT"]),
-                smtp_user = str(email_config["MAIL_USER"]),
-                smtp_password = str(email_config["MAIL_PASSWORD"]),
-                sender = str(email_config["MAIL_SENDER"])
+                smtp_host = str(email_config["host"]),
+                smtp_port = int(email_config["port"]),
+                smtp_user = str(email_config["user"]),
+                smtp_password = str(email_config["password"]),
+                sender = str(email_config["sender"])
             )
             print("[INFO] 流程完成邮件已经发送")
         return 0
@@ -373,11 +373,11 @@ def main(argv: list[str] | None = None) -> int:
                         subject = f"{config_data['project_name']} 批量任务启动",
                         body = f"{config_data['project_name']} 批量任务启动，已启动, 请等待流程运行完成。",
                         recipients = ['jinpeng.bi@glbizzia.com', 'zhexin.liu@glbizzia.com'],
-                        smtp_host = str(email_config["MAIL_HOST"]),
-                        smtp_port = int(email_config["MAIL_PORT"]),
-                        smtp_user = str(email_config["MAIL_USER"]),
-                        smtp_password = str(email_config["MAIL_PASSWORD"]),
-                        sender = str(email_config["MAIL_SENDER"]),
+                        smtp_host = str(email_config["host"]),
+                        smtp_port = int(email_config["port"]),
+                        smtp_user = str(email_config["user"]),
+                        smtp_password = str(email_config["password"]),
+                        sender = str(email_config["sender"]),
                     )
                     print("[INFO] 流程启动邮件已经发送")
                     notify = True
