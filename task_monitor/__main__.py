@@ -279,6 +279,28 @@ def main(argv: list[str] | None = None) -> int:
     db_file = _db_file_from_project(project_path)
     config_file = args.config_file.resolve()
 
+    if args.command == "init":
+        if config_file.exists():
+            print(f"[WARN] 配置文件 {args.config_file} 已存在")
+            return 0
+        try:
+            generate_config(
+                out_json_path = args.config_file,
+                customer_name = args.customer,
+                chip_id = args.chip_name,
+                fq_xj_dir = args.upload_path,
+                map_file = args.map_file,
+                out_dir = args.project_path,
+                project_name = args.project_name,
+                contract_id = args.contract,
+                batch_name = args.batch_name if args.batch_name != None else args.contract
+            )
+        except Exception as e:
+            print(f"[INIT] 配置文件生成失败: {e}")
+            return 1
+        print(f"[INIT] 生成配置文件成功")
+        return 0
+
     init_step_tracker_db(project_path)
     config_data = json.loads(config_file.read_text(encoding="utf-8"))
     map_pairs = _load_mapfile_pairs(Path(config_data["map_file"]))
@@ -309,27 +331,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[ERROR] 更新了样本 {sample} 的状态为 {status} 失败，请检查样本名是否正确")
             return 1
 
-    if args.command == "init":
-        if config_file.exists():
-            print(f"[WARN] 配置文件 {args.config_file} 已存在")
-            return 0
-        try:
-            generate_config(
-                out_json_path = args.config_file,
-                customer_name = args.customer,
-                chip_id = args.chip_name,
-                fq_xj_dir = args.upload_path,
-                map_file = args.map_file,
-                out_dir = args.project_path,
-                project_name = args.project_name,
-                contract_id = args.contract,
-                batch_name = args.batch_name if args.batch_name != None else args.contract
-            )
-        except Exception as e:
-            print(f"[INIT] 配置文件生成失败: {e}")
-            return 1
-        print(f"[INIT] 生成配置文件成功")
-        return 0
+
 
     if args.command == "notify":
         if args.send:
