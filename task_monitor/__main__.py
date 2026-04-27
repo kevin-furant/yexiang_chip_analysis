@@ -176,7 +176,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--batch_name",
         type=str,
         default=None,
-        help="bed文件"
+        help="批次名称，如果不填则使用合同编号作为批次名称"
     )
     notify_parser = subparsers.add_parser("notify", help="发送邮件通知")
     notify_parser.add_argument(
