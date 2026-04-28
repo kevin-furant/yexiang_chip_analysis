@@ -96,6 +96,7 @@ mkdir -p {self.bam_dir}/{sample_name}_buhuo_stat
         with open(script_file, 'w') as outf:
             outf.write(
                 f"""ulimit -n 10000
+{self.python3} -m task_monitor --project_path {self.config["out_dir"]} --config-file {self.config_file} update-all --stage merge --status running
 {self.bcftools} merge -m all {" ".join(vcf_list)} -O z -o {self.result_dir}/final.chip.vcf.gz && {self.bcftools} index {self.result_dir}/final.chip.vcf.gz
 {self.python3} {self.script_path}/fix.py {self.result_dir}/final.chip.vcf.gz {self.pos_gt} {self.result_dir}/final.chip.2M.vcf
 {self.bgzip} {self.result_dir}/final.chip.2M.vcf
@@ -104,6 +105,9 @@ mkdir -p {self.bam_dir}/{sample_name}_buhuo_stat
 {self.bgzip} {self.result_dir}/final.chip.filtdp.vcf
 {self.bcftools} index {self.result_dir}/final.chip.filtdp.vcf.gz
 sample_count=$({self.bcftools} query -l {self.result_dir}/final.chip.filtdp.vcf.gz | wc -l) && {self.plink} --vcf {self.result_dir}/final.chip.filtdp.vcf.gz --make-bed --out "{self.result_dir}/{self.batch_name}-${{sample_count}}例样本检测结果" --allow-extra-chr --chr-set {chromos_num} --double-id && {self.plink} --vcf {self.result_dir}/final.chip.filtdp.vcf.gz --recode --out "{self.result_dir}/{self.batch_name}-${{sample_count}}例样本检测结果" --allow-extra-chr --chr-set {chromos_num} --double-id && cd {self.result_dir} && mkdir {self.batch_name}-${{sample_count}}例样本检测结果 && mv {self.batch_name}-${{sample_count}}例样本检测结果.ped {self.batch_name}-${{sample_count}}例样本检测结果 && mv {self.batch_name}-${{sample_count}}例样本检测结果.map {self.batch_name}-${{sample_count}}例样本检测结果 && zip -r {self.batch_name}-${{sample_count}}例样本检测结果.zip {self.batch_name}-${{sample_count}}例样本检测结果
+merge_status=$([ $? == 0 ] && echo done || echo fail)
+{self.python3} -m task_monitor --project_path {self.config["out_dir"]} --config-file {self.config_file} update-all --stage merge --status $merge_status
+if [ "$merge_status" != "done" ]; then exit 1; fi
 """
             )
         self.sample_num = len(vcf_list)
@@ -125,6 +129,7 @@ sample_count=$({self.bcftools} query -l {self.result_dir}/final.chip.filtdp.vcf.
         with open(script_file, 'w') as outf:
             outf.write(
                 f"""export PYTHONPATH=$PYTHONPATH:{self.pythonlib}
+{self.python3} -m task_monitor --project_path {self.config["out_dir"]} --config-file {self.config_file} update-all --stage report --status running
 cat {self.map_file} | cut -f 1 | while read line; do echo -ne "$line\t" && grep "Fraction of Target Reads in all reads" {self.bam_dir}/${{line}}_buhuo_stat/coverage.report | awk '{{gsub(/%/, "", $NF); print $NF}}'; done > {self.stat_dir}/捕获效率统计.xls
 sed -i '1iSample\tCapture_rate(%)' {self.result_dir}/捕获效率统计.xls
 cat {self.map_file}  |cut -f 1  |while read line ;do echo -ne "$line\t" && zcat {self.bam_dir}/$line.bed.stat.gz |tail -1 ;done | awk '{{print $1"\t"$7"\t"$9}}' > {self.result_dir}/探针覆盖区域统计.xls
@@ -142,6 +147,8 @@ cp {self.vcfstat_dir}/chip_snp_stat.xls  {self.report_dir}/SNP
 cp {self.vcfstat_dir}/chip_sample_stat.xls  {self.report_dir}/SNP
 {self.python3} {self.script_path}/genotype_boxplot.py --snp_stat {self.report_dir}/SNP/chip_snp_stat.xls --spl_stat {self.report_dir}/SNP/chip_sample_stat.xls --outpath {self.report_dir}/SNP
 required_files=("{self.report_dir}/stat/bwa_result.xls" "{self.report_dir}/stat/stat.xls" "{self.report_dir}/SNP/chip_snp_stat.xls" "{self.report_dir}/SNP/chip_sample_stat.xls" "{self.report_dir}/SNP/sample_boxplot.png" "{self.report_dir}/SNP/snp_boxplot.png"); all_files_exist=true; for file in "${{required_files[@]}}"; do if [ ! -f "$file" ]; then echo "错误: 必需文件不存在: $file"; all_files_exist=false; fi; done; if $all_files_exist; then echo "所有必需文件已就绪，开始生成报告..."; {self.python3} {self.script_path}/qiyereport/yexiang_genohtml.py -d {self.report_dir} -p {chip_name_cn} -n {project_name_cn} -c {contract_id} -o {self.report_dir} --template {self.script_path}/qiyereport/template/full_report.html --src-dir {self.script_path}/qiyereport/src/ --copy-static -k {customer_name} -s {self.sample_num}; else echo "错误: 缺少必需文件，无法生成报告"; exit 1; fi
-{self.python3} -m task_monitor --project_path {self.config["out_dir"]} --config-file {self.config_file} notify --send
+report_status=$([ $? == 0 ] && echo done || echo fail)
+{self.python3} -m task_monitor --project_path {self.config["out_dir"]} --config-file {self.config_file} update-all --stage report --status $report_status
+if [ "$report_status" != "done" ]; then exit 1; fi
 """
             )

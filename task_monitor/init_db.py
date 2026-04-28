@@ -24,10 +24,28 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             sample TEXT NOT NULL UNIQUE,
             bwa2gvcf TEXT NOT NULL DEFAULT 'running',
+            merge_status TEXT NOT NULL DEFAULT 'pending',
+            report TEXT NOT NULL DEFAULT 'pending',
             created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
         )
         """
     )
+    existing_columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(task_status)").fetchall()
+    }
+    if "merge_status" not in existing_columns:
+        if "merge" in existing_columns:
+            conn.execute(
+                "ALTER TABLE task_status RENAME COLUMN \"merge\" TO merge_status"
+            )
+        else:
+            conn.execute(
+                "ALTER TABLE task_status ADD COLUMN merge_status TEXT NOT NULL DEFAULT 'pending'"
+            )
+    if "report" not in existing_columns:
+        conn.execute(
+            "ALTER TABLE task_status ADD COLUMN report TEXT NOT NULL DEFAULT 'pending'"
+        )
 
 
 def init_step_tracker_db(

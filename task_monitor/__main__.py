@@ -19,6 +19,21 @@ from .email_notify import load_email_config_from_env, send_notify_email
 
 
 email_config = load_email_config_from_env()
+
+STAGE_COLUMN_MAP = {
+    "bwa2gvcf": "bwa2gvcf",
+    "merge": "merge_status",
+    "report": "report",
+}
+
+
+def _stage_column(stage: str) -> str:
+    try:
+        return STAGE_COLUMN_MAP[stage]
+    except KeyError as exc:
+        raise ValueError(f"不支持的阶段: {stage}") from exc
+
+
 def _db_file_from_project(project_path: Path) -> Path:
     return project_path / "step_tracker.db"
 
@@ -73,15 +88,17 @@ def _insert_new_samples(
 def _fetch_samples_by_status(
     db_file: Path,
     status: str,
+    stage: str = "bwa2gvcf",
     ) -> list[str]:
     conn = _connect(db_file)
     try:
+        column = _stage_column(stage)
         sql = """
             SELECT sample
             FROM task_status
-            WHERE bwa2gvcf = ?
+            WHERE {column} = ?
             ORDER BY created_at ASC, sample ASC
-        """
+        """.format(column=column)
         rows = conn.execute(sql, (status,)).fetchall()
         return [r[0] for r in rows]
     finally:
@@ -131,6 +148,28 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         required=True,
         help="需要修改的样本状态"
+    )
+    update_parser.add_argument(
+        "--stage",
+        type=str,
+        default="bwa2gvcf",
+        choices=list(StatusUpdater.VALID_STATUS_BY_STAGE.keys()),
+        help="需要修改的阶段状态列，默认 bwa2gvcf",
+    )
+
+    update_all_parser = subparsers.add_parser("update-all", help="更新全部样本某阶段状态")
+    update_all_parser.add_argument(
+        "--status",
+        type=str,
+        required=True,
+        help="需要修改的样本状态",
+    )
+    update_all_parser.add_argument(
+        "--stage",
+        type=str,
+        required=True,
+        choices=list(StatusUpdater.VALID_STATUS_BY_STAGE.keys()),
+        help="需要修改的阶段状态列",
     )
 
     init_parser = subparsers.add_parser("init", help="初始化流程配置")
@@ -185,12 +224,6 @@ def _build_parser() -> argparse.ArgumentParser:
         help="CPU核数"
     )
 
-    notify_parser = subparsers.add_parser("notify", help="发送邮件通知")
-    notify_parser.add_argument(
-        "--send",
-        action="store_true",
-        help="是否发送任务结束邮件通知"
-    )
     return parser
 
 def _load_mapfile_pairs(map_file: Path) -> dict[str, tuple[str, str]]:
@@ -212,14 +245,15 @@ def _load_mapfile_pairs(map_file: Path) -> dict[str, tuple[str, str]]:
     return pairs
 
 
-def _count_status(db_file: Path, status: str) -> int:
+def _count_status(db_file: Path, status: str, stage: str = "bwa2gvcf") -> int:
     conn = _connect(db_file)
     try:
+        column = _stage_column(stage)
         sql = """
             SELECT COUNT(*)
             FROM task_status
-            WHERE bwa2gvcf = ?
-        """
+            WHERE {column} = ?
+        """.format(column=column)
         row = conn.execute(sql, (status,)).fetchone()
         return int(row[0] if row else 0)
     finally:
@@ -277,7 +311,7 @@ def main(argv: list[str] | None = None) -> int:
     4、当mapfile中的样本个数等于数据库step_tracker.db中已经完成的样本个数时， 打印batch_step分析步骤， 存放于批次目录下的00.bin目录内
     5、当mapfile中的样本个数等于数据库step_tracker.db中已经完成的样本个数时， 打印report_step分析步骤， 存放于批次目录下的00.bin目录内
     6、将第4和第5步打印的脚本用shell 串起来，在00.bin目录下生成一个work.sh, 调用subprocess执行这个脚本的投递
-    7、完成以上任务后就可以退出值守进程
+    7、当报告阶段全部完成后，由值守进程发送完成通知并退出
     """
     parser = _build_parser()
     args = parser.parse_args(argv)
@@ -320,31 +354,28 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "update":
         sample = args.sample
         status = args.status
-        if status not in StatusUpdater.VALID_STATUS:
+        stage = args.stage
+        if status not in StatusUpdater.VALID_STATUS_BY_STAGE[stage]:
             print(f"[ERROR] 无效的状态: {status}")
             return 1
-        status_updater = StatusUpdater(db_file=db_file, status_tag=status)
+        status_updater = StatusUpdater(db_file=db_file, status_tag=status, stage=stage)
         updated_count = status_updater.update_sample_status(sample)
         if updated_count == 1:
-            print(f"[OK] 更新了样本 {sample} 的状态为 {status}")
+            print(f"[OK] 更新了样本 {sample} 的 {stage} 状态为 {status}")
             return 0
         else:
-            print(f"[ERROR] 更新了样本 {sample} 的状态为 {status} 失败，请检查样本名是否正确")
+            print(f"[ERROR] 更新了样本 {sample} 的 {stage} 状态为 {status} 失败，请检查样本名是否正确")
             return 1
 
-    if args.command == "notify":
-        if args.send:
-            send_notify_email(
-                subject = f"{config_data['project_name']} 任务完成",
-                body = f"{config_data['project_name']} 任务已经全部完成, 请检查结果生成。",
-                recipients = ['jinpeng.bi@glbizzia.com', 'zhexin.liu@glbizzia.com'],
-                smtp_host = str(email_config["host"]),
-                smtp_port = int(email_config["port"]),
-                smtp_user = str(email_config["user"]),
-                smtp_password = str(email_config["password"]),
-                sender = str(email_config["sender"])
-            )
-            print("[INFO] 流程完成邮件已经发送")
+    if args.command == "update-all":
+        stage = args.stage
+        status = args.status
+        if status not in StatusUpdater.VALID_STATUS_BY_STAGE[stage]:
+            print(f"[ERROR] 无效的状态: {status}")
+            return 1
+        status_updater = StatusUpdater(db_file=db_file, status_tag=status, stage=stage)
+        updated_count = status_updater.update_all_sample_status()
+        print(f"[OK] 更新全部样本 {stage} 状态为 {status}，影响 {updated_count} 条记录")
         return 0
 
     init_step_tracker_db(project_path)
@@ -417,6 +448,20 @@ def main(argv: list[str] | None = None) -> int:
                 f"running={len(running_samples)}, done={done_count}, fail={fail_count}"
             )
 
+            if not final_stage_submitted:
+                merge_started_count = (
+                    _count_status(db_file, "running", stage="merge")
+                    + _count_status(db_file, "done", stage="merge")
+                    + _count_status(db_file, "fail", stage="merge")
+                )
+                report_started_count = (
+                    _count_status(db_file, "running", stage="report")
+                    + _count_status(db_file, "done", stage="report")
+                    + _count_status(db_file, "fail", stage="report")
+                )
+                if merge_started_count > 0 or report_started_count > 0:
+                    final_stage_submitted = True
+
             if not final_stage_submitted and done_count == total_samples_count:
                 printer = AnalysisPipePrinter(sample_list=set(map_pairs.keys()), config_file=config_file)
                 vcf_list = [
@@ -449,8 +494,29 @@ def main(argv: list[str] | None = None) -> int:
                 proc = _run_submit(work_script, cwd=out_dir)
                 final_stage_submitted = True
                 print(f"[OK] 已投递汇总流程: pid={proc.pid}, script={work_script}")
-                print("[OK] 全部样本已完成 single_step，值守进程退出。")
-                return 0
+
+            if final_stage_submitted:
+                merge_fail_count = _count_status(db_file, "fail", stage="merge")
+                report_fail_count = _count_status(db_file, "fail", stage="report")
+                if merge_fail_count > 0 or report_fail_count > 0:
+                    print("[Fail] merge/report 阶段存在失败样本，退出值守进程。")
+                    return 1
+
+                report_done_count = _count_status(db_file, "done", stage="report")
+                if report_done_count == total_samples_count and total_samples_count > 0:
+                    send_notify_email(
+                        subject = f"{config_data['project_name']} 任务完成",
+                        body = f"{config_data['project_name']} 任务已经全部完成, 请检查结果生成。",
+                        recipients = ['jinpeng.bi@glbizzia.com', 'zhexin.liu@glbizzia.com'],
+                        smtp_host = str(email_config["host"]),
+                        smtp_port = int(email_config["port"]),
+                        smtp_user = str(email_config["user"]),
+                        smtp_password = str(email_config["password"]),
+                        sender = str(email_config["sender"])
+                    )
+                    print("[INFO] 流程完成邮件已经发送")
+                    print("[OK] 报告阶段全部完成，值守进程退出。")
+                    return 0
 
             if args.once:
                 print("[INFO] --once 模式，执行一轮后退出。")
