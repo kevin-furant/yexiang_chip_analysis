@@ -96,6 +96,7 @@ mkdir -p {self.bam_dir}/{sample_name}_buhuo_stat
         with open(script_file, 'w') as outf:
             outf.write(
                 f"""ulimit -n 10000
+export PYTHONPATH=$PYTHONPATH:{self.pythonlib}
 {self.python3} -m task_monitor --project_path {self.config["out_dir"]} --config-file {self.config_file} update-all --stage merge --status running
 {self.bcftools} merge -m all {" ".join(vcf_list)} -O z -o {self.result_dir}/final.chip.vcf.gz && {self.bcftools} index {self.result_dir}/final.chip.vcf.gz
 {self.python3} {self.script_path}/fix.py {self.result_dir}/final.chip.vcf.gz {self.pos_gt} {self.result_dir}/final.chip.2M.vcf

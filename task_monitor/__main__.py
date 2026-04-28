@@ -476,7 +476,7 @@ def main(argv: list[str] | None = None) -> int:
                 _write_work_shell(
                     work_shell=work_script,
                     shell=batch_script,
-                    lines=9,
+                    lines=13,
                     mem="30G",
                     cpu=4,
                     comment=False,
@@ -485,7 +485,7 @@ def main(argv: list[str] | None = None) -> int:
                 _write_work_shell(
                     work_shell=work_script,
                     shell=report_script,
-                    lines=20,
+                    lines=22,
                     mem="82G",
                     cpu=20,
                     comment=False,
