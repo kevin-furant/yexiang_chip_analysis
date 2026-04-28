@@ -142,6 +142,6 @@ cp {self.vcfstat_dir}/chip_snp_stat.xls  {self.report_dir}/SNP
 cp {self.vcfstat_dir}/chip_sample_stat.xls  {self.report_dir}/SNP
 {self.python3} {self.script_path}/genotype_boxplot.py --snp_stat {self.report_dir}/SNP/chip_snp_stat.xls --spl_stat {self.report_dir}/SNP/chip_sample_stat.xls --outpath {self.report_dir}/SNP
 required_files=("{self.report_dir}/stat/bwa_result.xls" "{self.report_dir}/stat/stat.xls" "{self.report_dir}/SNP/chip_snp_stat.xls" "{self.report_dir}/SNP/chip_sample_stat.xls" "{self.report_dir}/SNP/sample_boxplot.png" "{self.report_dir}/SNP/snp_boxplot.png"); all_files_exist=true; for file in "${{required_files[@]}}"; do if [ ! -f "$file" ]; then echo "错误: 必需文件不存在: $file"; all_files_exist=false; fi; done; if $all_files_exist; then echo "所有必需文件已就绪，开始生成报告..."; {self.python3} {self.script_path}/qiyereport/yexiang_genohtml.py -d {self.report_dir} -p {chip_name_cn} -n {project_name_cn} -c {contract_id} -o {self.report_dir} --template {self.script_path}/qiyereport/template/full_report.html --src-dir {self.script_path}/qiyereport/src/ --copy-static -k {customer_name} -s {self.sample_num}; else echo "错误: 缺少必需文件，无法生成报告"; exit 1; fi
-{self.python3} -m task_monitor notify --send
+{self.python3} -m task_monitor --project_path {self.config["out_dir"]} --config-file {self.config_file} notify --send
 """
             )

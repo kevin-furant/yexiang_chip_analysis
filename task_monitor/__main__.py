@@ -309,7 +309,6 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[INIT] 生成配置文件成功")
         return 0
 
-    init_step_tracker_db(project_path)
     config_data = json.loads(config_file.read_text(encoding="utf-8"))
     map_pairs = _load_mapfile_pairs(Path(config_data["map_file"]))
     total_samples_count = len(map_pairs)
@@ -317,12 +316,6 @@ def main(argv: list[str] | None = None) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     tmp_dir = Path(config_data["out_dir"]) / config_data["batch_name"] / "tmp"
     tmp_dir.mkdir(parents=True, exist_ok=True)
-
-    submitted_samples: set[str] = set()
-    final_stage_submitted = False
-    round_index = 0
-    done_count = 0
-    fail_count = 0
 
     if args.command == "update":
         sample = args.sample
@@ -339,8 +332,6 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[ERROR] 更新了样本 {sample} 的状态为 {status} 失败，请检查样本名是否正确")
             return 1
 
-
-
     if args.command == "notify":
         if args.send:
             send_notify_email(
@@ -355,6 +346,16 @@ def main(argv: list[str] | None = None) -> int:
             )
             print("[INFO] 流程完成邮件已经发送")
         return 0
+
+    init_step_tracker_db(project_path)
+
+    submitted_samples: set[str] = set()
+    final_stage_submitted = False
+    round_index = 0
+    done_count = 0
+    fail_count = 0
+
+
 
     try:
         while True:
