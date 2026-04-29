@@ -385,8 +385,7 @@ def main(argv: list[str] | None = None) -> int:
     round_index = 0
     done_count = 0
     fail_count = 0
-
-
+    notify = False
 
     try:
         while True:
@@ -405,8 +404,7 @@ def main(argv: list[str] | None = None) -> int:
             inserted = _insert_new_samples(db_file, active_samples)
             print(f"[OK] 已载入样本 {len(active_samples)} 个，新增入库 {inserted} 个。")
             to_submit = sample_scope
-            batch_sample_count = len(to_submit)
-            notify = False
+            batch_sample_count = len(to_submit)            
             if to_submit:
                 if not notify:
                     send_notify_email(
