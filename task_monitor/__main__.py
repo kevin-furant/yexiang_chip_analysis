@@ -432,6 +432,7 @@ def main(argv: list[str] | None = None) -> int:
     done_count = 0
     fail_count = 0
     notify = False
+    batch_report_retry = False
 
     try:
         while True:
@@ -508,7 +509,7 @@ def main(argv: list[str] | None = None) -> int:
                 final_stage_submitted = True
                 print(f"[OK] 已投递汇总流程: pid={proc.pid}, script={work_script}")
 
-            if final_stage_submitted:
+            if final_stage_submitted and not batch_report_retry:
                 merge_fail_count = _count_status(db_file, "fail", stage="merge")
                 report_fail_count = _count_status(db_file, "fail", stage="report")
                 if merge_fail_count > 0 or report_fail_count > 0:
@@ -520,6 +521,7 @@ def main(argv: list[str] | None = None) -> int:
                         out_dir=out_dir,
                     )
                     print(f"[OK] 已重新投递汇总流程: pid={proc.pid}, script={work_script}")
+                    batch_report_retry = True
                     if args.once:
                         print("[INFO] --once 模式，重投递 merge/report 后退出。")
                         return 0
