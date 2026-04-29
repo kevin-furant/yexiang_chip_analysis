@@ -302,6 +302,52 @@ def _write_work_shell(
         fh.write(f"{cmd}\n")
 
 
+def _submit_merge_and_report(
+    config_file: Path,
+    config_data: dict,
+    map_pairs: dict[str, tuple[str, str]],
+    out_dir: Path,
+) -> tuple[subprocess.Popen[str], Path]:
+    printer = AnalysisPipePrinter(
+        sample_list=set(map_pairs.keys()),
+        config_file=config_file,
+    )
+    vcf_list = [
+        str(printer.bam_dir / f"{sample}.fill.vcf.gz")
+        for sample in map_pairs.keys()
+    ]
+    batch_script = out_dir / "batch_step.sh"
+    report_script = out_dir / "report_step.sh"
+    work_script = out_dir / "work.sh"
+
+    printer.print_batch_step(
+        batch_script,
+        vcf_list=vcf_list,
+        chromos_num=config_data["chromosome_num"],
+    )
+    printer.print_report_step(report_script, config_data=config_data)
+    _write_work_shell(
+        work_shell=work_script,
+        shell=batch_script,
+        lines=14,
+        mem="30G",
+        cpu=4,
+        comment=False,
+        append=False,
+    )
+    _write_work_shell(
+        work_shell=work_script,
+        shell=report_script,
+        lines=22,
+        mem="82G",
+        cpu=20,
+        comment=False,
+        append=True,
+    )
+    proc = _run_submit(work_script, cwd=out_dir)
+    return proc, work_script
+
+
 def main(argv: list[str] | None = None) -> int:
     """
     主函数，是一个服务进程，将会一直挂在后台，直到分析项目运行结束，主要完成以下几件事
@@ -453,35 +499,12 @@ def main(argv: list[str] | None = None) -> int:
                     final_stage_submitted = True
 
             if not final_stage_submitted and done_count == total_samples_count:
-                printer = AnalysisPipePrinter(sample_list=set(map_pairs.keys()), config_file=config_file)
-                vcf_list = [
-                    str(printer.bam_dir / f"{sample}.fill.vcf.gz")
-                    for sample in map_pairs.keys()
-                ]
-                batch_script = out_dir / "batch_step.sh"
-                report_script = out_dir / "report_step.sh"
-                work_script = out_dir / "work.sh"
-                printer.print_batch_step(batch_script, vcf_list=vcf_list, chromos_num=config_data["chromosome_num"])
-                printer.print_report_step(report_script, config_data=config_data)
-                _write_work_shell(
-                    work_shell=work_script,
-                    shell=batch_script,
-                    lines=14,
-                    mem="30G",
-                    cpu=4,
-                    comment=False,
-                    append=False,
+                proc, work_script = _submit_merge_and_report(
+                    config_file=config_file,
+                    config_data=config_data,
+                    map_pairs=map_pairs,
+                    out_dir=out_dir,
                 )
-                _write_work_shell(
-                    work_shell=work_script,
-                    shell=report_script,
-                    lines=22,
-                    mem="82G",
-                    cpu=20,
-                    comment=False,
-                    append=True,
-                )
-                proc = _run_submit(work_script, cwd=out_dir)
                 final_stage_submitted = True
                 print(f"[OK] 已投递汇总流程: pid={proc.pid}, script={work_script}")
 
@@ -489,8 +512,19 @@ def main(argv: list[str] | None = None) -> int:
                 merge_fail_count = _count_status(db_file, "fail", stage="merge")
                 report_fail_count = _count_status(db_file, "fail", stage="report")
                 if merge_fail_count > 0 or report_fail_count > 0:
-                    print("[Fail] merge/report 阶段存在失败样本，退出值守进程。")
-                    return 1
+                    print("[Warn] merge/report 阶段存在失败样本，重新打印并投递 merge/report 步骤。")
+                    proc, work_script = _submit_merge_and_report(
+                        config_file=config_file,
+                        config_data=config_data,
+                        map_pairs=map_pairs,
+                        out_dir=out_dir,
+                    )
+                    print(f"[OK] 已重新投递汇总流程: pid={proc.pid}, script={work_script}")
+                    if args.once:
+                        print("[INFO] --once 模式，重投递 merge/report 后退出。")
+                        return 0
+                    sleep(max(args.interval, 1) * 60)
+                    continue
 
                 report_done_count = _count_status(db_file, "done", stage="report")
                 if report_done_count == total_samples_count and total_samples_count > 0:
