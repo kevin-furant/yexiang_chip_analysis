@@ -509,9 +509,9 @@ def main(argv: list[str] | None = None) -> int:
                 final_stage_submitted = True
                 print(f"[OK] 已投递汇总流程: pid={proc.pid}, script={work_script}")
 
+            merge_fail_count = _count_status(db_file, "fail", stage="merge")
+            report_fail_count = _count_status(db_file, "fail", stage="report")
             if final_stage_submitted and not batch_report_retry:
-                merge_fail_count = _count_status(db_file, "fail", stage="merge")
-                report_fail_count = _count_status(db_file, "fail", stage="report")
                 if merge_fail_count > 0 or report_fail_count > 0:
                     print("[Warn] merge/report 阶段存在失败样本，重新打印并投递 merge/report 步骤。")
                     proc, work_script = _submit_merge_and_report(
@@ -525,24 +525,33 @@ def main(argv: list[str] | None = None) -> int:
                     if args.once:
                         print("[INFO] --once 模式，重投递 merge/report 后退出。")
                         return 0
+                    if merge_fail_count > 0:
+                        StatusUpdater(db_file=db_file, status_tag="pending", stage="merge")
+                        print("[INFO] merge 阶段存在失败样本，重新投递修改status为pending，等待重新运行。")
+                    if report_fail_count > 0:
+                        StatusUpdater(db_file=db_file, status_tag="pending", stage="report")
+                        print("[INFO] report 阶段存在失败样本，重新投递修改status为pending，等待重新运行。")
                     sleep(max(args.interval, 1) * 60)
                     continue
-
-                report_done_count = _count_status(db_file, "done", stage="report")
-                if report_done_count == total_samples_count and total_samples_count > 0:
-                    send_notify_email(
-                        subject = f"{config_data['project_name']} 任务完成",
-                        body = f"{config_data['project_name']} 任务已经全部完成, 请检查结果生成。",
-                        recipients = ['jinpeng.bi@glbizzia.com', 'zhexin.liu@glbizzia.com'],
-                        smtp_host = str(email_config["host"]),
-                        smtp_port = int(email_config["port"]),
-                        smtp_user = str(email_config["user"]),
-                        smtp_password = str(email_config["password"]),
-                        sender = str(email_config["sender"])
-                    )
-                    print("[INFO] 流程完成邮件已经发送")
-                    print("[OK] 报告阶段全部完成，值守进程退出。")
-                    return 0
+            
+            if merge_fail_count > 0 or report_fail_count > 0:
+                print("[FAIL] merge/report 阶段存在失败样本，退出值守，检查日志后手动处理并重新运行。")
+                return 1
+            report_done_count = _count_status(db_file, "done", stage="report")
+            if report_done_count == total_samples_count and total_samples_count > 0:
+                send_notify_email(
+                    subject = f"{config_data['project_name']} 任务完成",
+                    body = f"{config_data['project_name']} 任务已经全部完成, 请检查结果生成。",
+                    recipients = ['jinpeng.bi@glbizzia.com', 'zhexin.liu@glbizzia.com'],
+                    smtp_host = str(email_config["host"]),
+                    smtp_port = int(email_config["port"]),
+                    smtp_user = str(email_config["user"]),
+                    smtp_password = str(email_config["password"]),
+                    sender = str(email_config["sender"])
+                )
+                print("[INFO] 流程完成邮件已经发送")
+                print("[OK] 报告阶段全部完成，值守进程退出。")
+                return 0
 
             if args.once:
                 print("[INFO] --once 模式，执行一轮后退出。")
