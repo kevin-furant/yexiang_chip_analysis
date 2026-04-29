@@ -131,12 +131,12 @@ if [ "$merge_status" != "done" ]; then exit 1; fi
             outf.write(
                 f"""export PYTHONPATH=$PYTHONPATH:{self.pythonlib}
 {self.python3} -m task_monitor --project_path {self.config["out_dir"]} --config-file {self.config_file} update-all --stage report --status running
-cat {self.map_file} | cut -f 1 | while read line; do echo -ne "$line\t" && grep "Fraction of Target Reads in all reads" {self.bam_dir}/${{line}}_buhuo_stat/coverage.report | awk '{{gsub(/%/, "", $NF); print $NF}}'; done > {self.stat_dir}/捕获效率统计.xls
-sed -i '1iSample\tCapture_rate(%)' {self.result_dir}/捕获效率统计.xls
-cat {self.map_file}  |cut -f 1  |while read line ;do echo -ne "$line\t" && zcat {self.bam_dir}/$line.bed.stat.gz |tail -1 ;done | awk '{{print $1"\t"$7"\t"$9}}' > {self.result_dir}/探针覆盖区域统计.xls
-sed -i '1iSample\tCoverage(%)\tAverage_depth' {self.result_dir}/探针覆盖区域统计.xls
-cat {self.map_file} | cut -f 1 | while read line; do  echo -ne "$line\t" &&  awk -v lines1=$(wc -l < {self.snp_list}) -v lines2=$(wc -l < {self.bam_dir}/"$line".snp.depth.xls) 'BEGIN {{ printf "%.2f\n", (lines2/lines1)*100 }}' ; done > {self.result_dir}/位点检出统计.xls
-sed -i '1iSample\tSite_detection_rate(%)' {self.result_dir}/位点检出统计.xls
+cat {self.map_file} | cut -f 1 | while read line; do echo -ne "$line\\t" && grep "Fraction of Target Reads in all reads" {self.bam_dir}/${{line}}_buhuo_stat/coverage.report | awk '{{gsub(/%/, "", $NF); print $NF}}'; done > {self.stat_dir}/捕获效率统计.xls
+sed -i '1iSample\\tCapture_rate(%)' {self.result_dir}/捕获效率统计.xls
+cat {self.map_file}  |cut -f 1  |while read line ;do echo -ne "$line\\t" && zcat {self.bam_dir}/$line.bed.stat.gz |tail -1 ;done | awk '{{print $1"\\t"$7"\\t"$9}}' > {self.result_dir}/探针覆盖区域统计.xls
+sed -i '1iSample\\tCoverage(%)\\tAverage_depth' {self.result_dir}/探针覆盖区域统计.xls
+cat {self.map_file} | cut -f 1 | while read line; do  echo -ne "$line\\t" &&  awk -v lines1=$(wc -l < {self.snp_list}) -v lines2=$(wc -l < {self.bam_dir}/"$line".snp.depth.xls) 'BEGIN {{ printf "%.2f\\n", (lines2/lines1)*100 }}' ; done > {self.result_dir}/位点检出统计.xls
+sed -i '1iSample\\tSite_detection_rate(%)' {self.result_dir}/位点检出统计.xls
 paste {self.result_dir}/位点检出统计.xls  {self.result_dir}/捕获效率统计.xls  {self.result_dir}/探针覆盖区域统计.xls | cut -f 1,2,4,6,7 > {self.result_dir}/stat.xls
 {self.python3} {self.script_path}/parse_bwa_stat.py {self.map_file} {Path(self.config["out_dir"]) / self.config["batch_name"] / "01.BWA"} {self.genome_length}
 {self.python3} {self.script_path}/GT.py --input {self.result_dir}/final.chip.filtdp.vcf.gz --output {self.vcfstat_dir}/chip_GT.xls --min_dp 4
