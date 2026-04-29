@@ -447,16 +447,8 @@ def main(argv: list[str] | None = None) -> int:
             )
 
             if not final_stage_submitted:
-                merge_started_count = (
-                    _count_status(db_file, "running", stage="merge")
-                    + _count_status(db_file, "done", stage="merge")
-                    + _count_status(db_file, "fail", stage="merge")
-                )
-                report_started_count = (
-                    _count_status(db_file, "running", stage="report")
-                    + _count_status(db_file, "done", stage="report")
-                    + _count_status(db_file, "fail", stage="report")
-                )
+                merge_started_count = _count_status(db_file, "done", stage="merge")
+                report_started_count = _count_status(db_file, "done", stage="report")
                 if merge_started_count > 0 or report_started_count > 0:
                     final_stage_submitted = True
 
@@ -474,7 +466,7 @@ def main(argv: list[str] | None = None) -> int:
                 _write_work_shell(
                     work_shell=work_script,
                     shell=batch_script,
-                    lines=13,
+                    lines=14,
                     mem="30G",
                     cpu=4,
                     comment=False,
