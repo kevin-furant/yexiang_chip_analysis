@@ -59,7 +59,8 @@ def send_notify_email(
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = sender
-    msg["To"] = ", ".join(recipients)
+    msg["To"] = recipients[0]
+    msg["Cc"] = ", ".join(recipients[1:]) if len(recipients) > 1 else ""
     msg.set_content(body)
 
     for item in attachments or []:
