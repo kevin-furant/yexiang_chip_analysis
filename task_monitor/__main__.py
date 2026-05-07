@@ -498,8 +498,9 @@ def main(argv: list[str] | None = None) -> int:
                 report_started_count = _count_status(db_file, "done", stage="report")
                 if merge_started_count > 0 or report_started_count > 0:
                     final_stage_submitted = True
-
-            if not final_stage_submitted and done_count == total_samples_count:
+            merge_fail_count = _count_status(db_file, "fail", stage="merge")
+            report_fail_count = _count_status(db_file, "fail", stage="report")
+            if not final_stage_submitted and done_count == total_samples_count and merge_fail_count == 0 and report_fail_count == 0:
                 proc, work_script = _submit_merge_and_report(
                     config_file=config_file,
                     config_data=config_data,
@@ -509,9 +510,7 @@ def main(argv: list[str] | None = None) -> int:
                 final_stage_submitted = True
                 print(f"[OK] 已投递汇总流程: pid={proc.pid}, script={work_script}")
 
-            merge_fail_count = _count_status(db_file, "fail", stage="merge")
-            report_fail_count = _count_status(db_file, "fail", stage="report")
-            if final_stage_submitted and not batch_report_retry:
+            if not final_stage_submitted and not batch_report_retry:
                 if merge_fail_count > 0 or report_fail_count > 0:
                     print("[Warn] merge/report 阶段存在失败样本，重新打印并投递 merge/report 步骤。")
                     proc, work_script = _submit_merge_and_report(
