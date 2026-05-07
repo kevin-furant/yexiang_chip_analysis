@@ -100,10 +100,10 @@ export PYTHONPATH=$PYTHONPATH:{self.pythonlib}
 {self.python3} -m task_monitor --project_path {self.config["out_dir"]} --config-file {self.config_file} update-all --stage merge --status running
 {self.bcftools} merge -m all {" ".join(vcf_list)} -O z -o {self.result_dir}/final.chip.vcf.gz && {self.bcftools} index {self.result_dir}/final.chip.vcf.gz
 {self.python3} {self.script_path}/fix.py {self.result_dir}/final.chip.vcf.gz {self.pos_gt} {self.result_dir}/final.chip.2M.vcf
-{self.bgzip} {self.result_dir}/final.chip.2M.vcf
+{self.bgzip} -f {self.result_dir}/final.chip.2M.vcf
 {self.bcftools} index {self.result_dir}/final.chip.2M.vcf.gz
 {self.bcftools} +setGT {self.result_dir}/final.chip.2M.vcf.gz -o {self.result_dir}/final.chip.filtdp.vcf -- -t q -n . -i 'FMT/DP<4'
-{self.bgzip} {self.result_dir}/final.chip.filtdp.vcf
+{self.bgzip} -f {self.result_dir}/final.chip.filtdp.vcf
 {self.bcftools} index {self.result_dir}/final.chip.filtdp.vcf.gz
 sample_count=$({self.bcftools} query -l {self.result_dir}/final.chip.filtdp.vcf.gz | wc -l) && {self.plink} --vcf {self.result_dir}/final.chip.filtdp.vcf.gz --make-bed --out "{self.result_dir}/{self.batch_name}-${{sample_count}}例样本检测结果" --allow-extra-chr --chr-set {chromos_num} --double-id && {self.plink} --vcf {self.result_dir}/final.chip.filtdp.vcf.gz --recode --out "{self.result_dir}/{self.batch_name}-${{sample_count}}例样本检测结果" --allow-extra-chr --chr-set {chromos_num} --double-id && cd {self.result_dir} && mkdir {self.batch_name}-${{sample_count}}例样本检测结果 && mv {self.batch_name}-${{sample_count}}例样本检测结果.ped {self.batch_name}-${{sample_count}}例样本检测结果 && mv {self.batch_name}-${{sample_count}}例样本检测结果.map {self.batch_name}-${{sample_count}}例样本检测结果 && zip -r {self.batch_name}-${{sample_count}}例样本检测结果.zip {self.batch_name}-${{sample_count}}例样本检测结果
 merge_status=$([ $? == 0 ] && echo done || echo fail)
